@@ -103,8 +103,8 @@ select count(*) from public.vocabulary where user_id <> auth.uid();  -- muss 0 s
 
 ## Design („Karteikasten“)
 
-Vorbild ist die Schul-Karteikarte: weiße Karte, rote Kopflinie, hellblaue Linierung,
-Königsblau als Tinte, Rot für Korrekturen.
+Vorbild ist die Schul-Karteikarte: weiße Karte, rote Kopflinie, zarte Linierung,
+Türkis (Farbton von #00ffe6) als Akzent, Rot für Korrekturen.
 
 - `src/theme.css` – alle Farb-, Radius- und Schatten-Tokens als Overrides der Web-Awesome-Tokens
   (`--wa-*`), getrennt für Hell (`html.wa-light`) und Dunkel (`html.wa-dark`).

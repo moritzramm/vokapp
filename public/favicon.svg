@@ -1,18 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <style>
-    .side { fill: #16215a; }
-    .edge { fill: #0d1640; }
+    .side { fill: #00302a; }
+    .edge { fill: #00211d; }
     .hi { fill: #ffffff; }
     @media (prefers-color-scheme: dark) {
-      .side { fill: #3a4fb8; }
-      .edge { fill: #2a3a8c; }
+      .side { fill: #006b60; }
+      .edge { fill: #005047; }
     }
   </style>
   <defs>
     <linearGradient id="face" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8aa2ff"/>
-      <stop offset=".45" stop-color="#3d5fd6"/>
-      <stop offset="1" stop-color="#2446b0"/>
+      <stop offset="0" stop-color="#00c3af"/>
+      <stop offset=".45" stop-color="#007d70"/>
+      <stop offset="1" stop-color="#006056"/>
     </linearGradient>
   </defs>
   <!-- extrusion: finely stacked copies of the V shifted down-right, darkest at the back -->

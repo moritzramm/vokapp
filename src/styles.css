@@ -514,23 +514,23 @@ wa-page[view='desktop']::part(navigation) {
 }
 
 .logo-stop-1 {
-  stop-color: #8aa2ff;
+  stop-color: #00c3af;
 }
 
 .logo-stop-2 {
-  stop-color: #3d5fd6;
+  stop-color: #007d70;
 }
 
 .logo-stop-3 {
-  stop-color: #2446b0;
+  stop-color: #006056;
 }
 
 .logo-side {
-  fill: #16215a;
+  fill: #00302a;
 }
 
 .logo-edge {
-  fill: #0d1640;
+  fill: #00211d;
 }
 
 .logo-highlight {
@@ -544,11 +544,11 @@ wa-page[view='desktop']::part(navigation) {
 
 /* Dark mode: lighter extrusion so the depth stays visible on the dark background */
 html.wa-dark .logo-side {
-  fill: #3a4fb8;
+  fill: #006b60;
 }
 
 html.wa-dark .logo-edge {
-  fill: #2a3a8c;
+  fill: #005047;
 }
 
 .wordmark {
@@ -791,6 +791,7 @@ wa-page[data-focus] .bottom-nav {
 
 .learn-layout {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--wa-space-2xl);
   align-items: start;
 }
@@ -804,6 +805,7 @@ wa-page[data-focus] .bottom-nav {
 
 .learn-start {
   display: grid;
+  min-width: 0;
   gap: var(--wa-space-m);
   max-width: var(--app-narrow-width);
 }
