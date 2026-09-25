@@ -27,3 +27,7 @@ export interface LearningEvent {
 }
 
 export type LearningMode = 'all' | 'difficult';
+
+/** forward: Vokabel → Übersetzung, reverse: Übersetzung → Vokabel */
+export type Direction = 'forward' | 'reverse';
+export type DirectionMode = Direction | 'mixed';

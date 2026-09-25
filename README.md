@@ -31,8 +31,11 @@ Fehlen sie, zeigt die App einen Konfigurationshinweis statt abzustürzen.
 ## Supabase einrichten
 
 1. Projekt auf [supabase.com](https://supabase.com) anlegen.
-2. **Datenbank-Schema:** Inhalt von `supabase/migrations/001_initial_schema.sql` im
-   SQL-Editor ausführen (oder mit der Supabase CLI: `supabase link` + `supabase db push`).
+2. **Datenbank-Schema:** Die Dateien in `supabase/migrations/` der Reihe nach im SQL-Editor
+   ausführen (oder mit der Supabase CLI: `supabase link` + `supabase db push`):
+   - `001_initial_schema.sql` – Tabellen, RLS, Funktion `record_answer`
+   - `002_learning_direction.sql` – speichert die Lernrichtung in `learning_events`
+     (ohne diese Migration funktioniert die App weiter, die Richtung wird dann nur nicht gespeichert)
 3. **Auth:** Unter *Authentication → Sign In / Providers* „Email“ aktivieren.
    Empfohlen: „Confirm email“ eingeschaltet lassen.
 4. **Redirect-URLs** (wichtig für Bestätigungs- und Passwort-Reset-Links):
@@ -134,6 +137,9 @@ public/icons/          Selbst gehostete Font-Awesome-Free-Icons (CC BY 4.0)
 
 **Lernmodi**
 
+- *Richtung:* normal (Vokabel → Übersetzung), umgekehrt oder gemischt (zufällig je Karte).
+  Die Zähler richtig/falsch gelten gemeinsam für beide Richtungen; die Richtung jeder Antwort
+  steht in `learning_events.direction` und kann später separat ausgewertet werden.
 - *Alle Vokabeln:* zufällig gemischt.
 - *Schwierige Vokabeln:* Vokabeln mit mindestens einer falschen Antwort und einer
   Fehlerquote ≥ 25 %. Die Reihenfolge ist gewichtet zufällig; Gewicht =
@@ -148,6 +154,11 @@ es wird nie etwas überschrieben oder gelöscht. Ungültige Einträge werden mit
 Limits: 5 MB, 10 000 Einträge.
 
 ## Hinweise
+
+- `beispiele/franzoesisch-grundwortschatz.json`: 30 französische Grundvokabeln zum Ausprobieren,
+  einzuspielen über *Einstellungen → JSON importieren*.
+- Die Sprachauswahl bietet Deutsch, Englisch und Französisch (plus bereits verwendete Sprachen);
+  alles andere über „Andere Sprache …“. Die Liste steht in `src/lib/languages.ts`.
 
 - Tastatur im Lernmodus: Leertaste = aufdecken, ← / 1 = falsch, → / 2 = gewusst.
 - `vendor/webawesome/` enthält eine lokale Kopie des Web-Awesome-Pakets (inkl. Doku unter

@@ -33,6 +33,17 @@ function AuthGate() {
   switch (auth.status) {
     case 'loading':
       return <FullscreenMessage loading title="Vokabeltrainer" />;
+    case 'unreachable':
+      return (
+        <FullscreenMessage icon="cloud" title="Keine Verbindung">
+          Deine Anmeldung kann gerade nicht geprüft werden, weil die Cloud nicht erreichbar ist. Prüfe Deine Internetverbindung.
+          <span className="fullscreen-action">
+            <wa-button variant="brand" size="l" onClick={() => window.location.reload()}>
+              Erneut versuchen
+            </wa-button>
+          </span>
+        </FullscreenMessage>
+      );
     case 'signed-out':
       return <AuthPage />;
     case 'password-recovery':

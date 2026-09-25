@@ -23,6 +23,7 @@ type LearningEventRow = {
   vocabulary_id: string;
   was_correct: boolean;
   created_at: string;
+  direction: 'forward' | 'reverse';
 };
 
 export type Database = {
@@ -54,6 +55,7 @@ export type Database = {
           vocabulary_id: string;
           was_correct: boolean;
           created_at?: string;
+          direction?: 'forward' | 'reverse';
         };
         Update: Partial<LearningEventRow>;
         Relationships: [];
@@ -67,6 +69,7 @@ export type Database = {
           p_vocabulary_id: string;
           p_was_correct: boolean;
           p_answered_at?: string;
+          p_direction?: 'forward' | 'reverse';
         };
         Returns: VocabularyRow | null;
       };

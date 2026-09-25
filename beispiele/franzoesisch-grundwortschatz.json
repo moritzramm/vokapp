@@ -1,0 +1,186 @@
+{
+  "format": "vokabel-app",
+  "version": 1,
+  "vocabulary": [
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "bonjour",
+      "answer": "guten Tag / hallo"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "au revoir",
+      "answer": "auf Wiedersehen"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "merci",
+      "answer": "danke"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "s'il vous plaît",
+      "answer": "bitte"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "oui",
+      "answer": "ja"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "non",
+      "answer": "nein"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "excusez-moi",
+      "answer": "Entschuldigung"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "je m'appelle …",
+      "answer": "ich heiße …"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "Comment ça va ?",
+      "answer": "Wie geht's?"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "bien",
+      "answer": "gut"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "l'eau (f)",
+      "answer": "das Wasser"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "le pain",
+      "answer": "das Brot"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "la maison",
+      "answer": "das Haus"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "l'ami (m)",
+      "answer": "der Freund"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "l'école (f)",
+      "answer": "die Schule"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "le chat",
+      "answer": "die Katze"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "le chien",
+      "answer": "der Hund"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "la voiture",
+      "answer": "das Auto"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "le livre",
+      "answer": "das Buch"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "la famille",
+      "answer": "die Familie"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "manger",
+      "answer": "essen"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "boire",
+      "answer": "trinken"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "être",
+      "answer": "sein"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "avoir",
+      "answer": "haben"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "aller",
+      "answer": "gehen"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "parler",
+      "answer": "sprechen"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "grand",
+      "answer": "groß"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "petit",
+      "answer": "klein"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "aujourd'hui",
+      "answer": "heute"
+    },
+    {
+      "sourceLanguage": "Französisch",
+      "targetLanguage": "Deutsch",
+      "question": "demain",
+      "answer": "morgen"
+    }
+  ]
+}

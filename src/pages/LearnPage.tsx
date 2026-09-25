@@ -5,7 +5,7 @@ import { languagePairLabel } from '../lib/languages';
 import { buildSession, isDifficult } from '../lib/scheduler';
 import { readSetting, SESSION_SIZES, writeSetting, type SessionSize } from '../lib/settings';
 import { notify } from '../lib/toast';
-import type { LearningMode, Vocabulary } from '../lib/types';
+import type { Direction, DirectionMode, LearningMode, Vocabulary } from '../lib/types';
 import { useUser } from '../hooks/useAuth';
 import { href } from '../hooks/useRoute';
 import { useVocabulary } from '../hooks/useVocabulary';
@@ -17,8 +17,21 @@ const pairKey = (v: Pick<Vocabulary, 'sourceLanguage' | 'targetLanguage'>) => en
 
 interface SessionConfig {
   mode: LearningMode;
+  direction: DirectionMode;
   pair: string;
   size: SessionSize;
+}
+
+interface Card {
+  vocabulary: Vocabulary;
+  direction: Direction;
+}
+
+function toCards(vocabularies: Vocabulary[], mode: DirectionMode): Card[] {
+  return vocabularies.map((vocabulary) => ({
+    vocabulary,
+    direction: mode === 'mixed' ? (Math.random() < 0.5 ? 'forward' : 'reverse') : mode,
+  }));
 }
 
 interface SessionResult {
@@ -26,12 +39,13 @@ interface SessionResult {
   incorrect: number;
 }
 
-type Phase = { name: 'setup' } | { name: 'session'; cards: Vocabulary[] } | { name: 'done'; total: number; result: SessionResult };
+type Phase = { name: 'setup' } | { name: 'session'; id: number; cards: Card[] } | { name: 'done'; total: number; result: SessionResult };
 
 export function LearnPage() {
   const { vocabularies, loading } = useVocabulary();
   const [config, setConfig] = useState<SessionConfig>(() => ({
     mode: readSetting<LearningMode>('learningMode', 'all'),
+    direction: readSetting<DirectionMode>('learningDirection', 'forward'),
     pair: ALL_PAIRS,
     size: readSetting<SessionSize>('sessionSize', 20),
   }));
@@ -40,19 +54,21 @@ export function LearnPage() {
   const updateConfig = (patch: Partial<SessionConfig>) => {
     setConfig((c) => ({ ...c, ...patch }));
     if (patch.mode) writeSetting('learningMode', patch.mode);
+    if (patch.direction) writeSetting('learningDirection', patch.direction);
     if (patch.size !== undefined) writeSetting('sessionSize', patch.size);
   };
 
   const start = useCallback(() => {
     const pool = config.pair === ALL_PAIRS ? vocabularies : vocabularies.filter((v) => pairKey(v) === config.pair);
-    const cards = buildSession(config.mode, pool, config.size || pool.length);
-    if (cards.length) setPhase({ name: 'session', cards });
+    const selected = buildSession(config.mode, pool, config.size || pool.length);
+    // id: a fresh session (new component state) on every start, even with identical cards
+    if (selected.length) setPhase({ name: 'session', id: Date.now(), cards: toCards(selected, config.direction) });
   }, [config, vocabularies]);
 
   if (phase.name === 'session') {
     return (
       <FlashcardSession
-        key={phase.cards.map((c) => c.id).join()}
+        key={phase.id}
         cards={phase.cards}
         onFinish={(result) => {
           const total = result.correct + result.incorrect;
@@ -117,6 +133,17 @@ function SessionSetup({
   const available = config.mode === 'difficult' ? difficultCount : pool.length;
   const sessionLength = config.size ? Math.min(config.size, available) : available;
 
+  // Concrete language names when only one pair is in play, generic wording otherwise.
+  const single = pair !== ALL_PAIRS || pairs.length === 1 ? pool[0] : undefined;
+  const from = single?.sourceLanguage ?? 'Vokabel';
+  const to = single?.targetLanguage ?? 'Übersetzung';
+  const directionHint =
+    config.direction === 'forward'
+      ? `${from} wird gezeigt, ${to} ist gefragt.`
+      : config.direction === 'reverse'
+        ? `${to} wird gezeigt, ${from} ist gefragt.`
+        : `Jede Karte kommt zufällig in eine der beiden Richtungen.`;
+
   return (
     <div className="page-narrow wa-stack wa-gap-xl">
       <wa-radio-group
@@ -145,6 +172,26 @@ function SessionSetup({
           ))}
         </wa-select>
       ) : null}
+
+      <wa-radio-group
+        label="Richtung"
+        hint={directionHint}
+        orientation="horizontal"
+        size="l"
+        className="segmented"
+        value={config.direction}
+        onInput={(e) => onChange({ direction: valueOf(e) as DirectionMode })}
+      >
+        <wa-radio appearance="button" value="forward" aria-label={`${from} nach ${to}`}>
+          {single ? `${abbreviate(from)} → ${abbreviate(to)}` : 'Normal'}
+        </wa-radio>
+        <wa-radio appearance="button" value="reverse" aria-label={`${to} nach ${from}`}>
+          {single ? `${abbreviate(to)} → ${abbreviate(from)}` : 'Umgekehrt'}
+        </wa-radio>
+        <wa-radio appearance="button" value="mixed">
+          Gemischt
+        </wa-radio>
+      </wa-radio-group>
 
       <wa-radio-group
         label="Karten pro Runde"
@@ -183,11 +230,17 @@ function SessionSetup({
   );
 }
 
+/** Short language label for the direction buttons (e.g. "Französisch" → "FR"); the hint shows the full names. */
+function abbreviate(language: string): string {
+  const known: Record<string, string> = { Deutsch: 'DE', Englisch: 'EN', Französisch: 'FR' };
+  return known[language] ?? (language.length > 8 ? `${language.slice(0, 6)}.` : language);
+}
+
 // ---------------------------------------------------------------------------
 // Session
 // ---------------------------------------------------------------------------
 
-function FlashcardSession({ cards, onFinish }: { cards: Vocabulary[]; onFinish: (result: SessionResult) => void }) {
+function FlashcardSession({ cards, onFinish }: { cards: Card[]; onFinish: (result: SessionResult) => void }) {
   const user = useUser();
   const { applyServerRow, forgetRow, refreshPending } = useVocabulary();
   const [index, setIndex] = useState(0);
@@ -196,7 +249,9 @@ function FlashcardSession({ cards, onFinish }: { cards: Vocabulary[]; onFinish: 
   const warnedOffline = useRef(false);
   const revealButton = useRef<{ focus: () => void } | null>(null);
 
-  const card = cards[index];
+  const { vocabulary: card, direction } = cards[index];
+  const front = direction === 'forward' ? { language: card.sourceLanguage, text: card.question } : { language: card.targetLanguage, text: card.answer };
+  const back = direction === 'forward' ? { language: card.targetLanguage, text: card.answer } : { language: card.sourceLanguage, text: card.question };
   const progress = (index / cards.length) * 100;
 
   useEffect(() => {
@@ -210,7 +265,7 @@ function FlashcardSession({ cards, onFinish }: { cards: Vocabulary[]; onFinish: 
       else result.current.incorrect++;
 
       // Persist immediately (not at the end of the session), without blocking the next card.
-      recordAnswer(user.id, card.id, wasCorrect)
+      recordAnswer(user.id, card.id, wasCorrect, direction)
         .then((outcome) => {
           if (outcome.status === 'saved') applyServerRow(outcome.vocabulary);
           if (outcome.status === 'deleted') forgetRow(card.id);
@@ -231,7 +286,7 @@ function FlashcardSession({ cards, onFinish }: { cards: Vocabulary[]; onFinish: 
         setRevealed(false);
       }
     },
-    [revealed, user.id, card, index, cards.length, onFinish, applyServerRow, forgetRow, refreshPending],
+    [revealed, user.id, card, direction, index, cards.length, onFinish, applyServerRow, forgetRow, refreshPending],
   );
 
   // Keyboard: Space/Enter = reveal, ← or 1 = falsch, → or 2 = gewusst
@@ -267,18 +322,16 @@ function FlashcardSession({ cards, onFinish }: { cards: Vocabulary[]; onFinish: 
         <wa-progress-bar value={progress} label="Fortschritt der Lernrunde" className="session-progress"></wa-progress-bar>
       </div>
 
-      <article className="flashcard" key={card.id} aria-live="polite">
+      <article className="flashcard" key={`${index}-${card.id}`} aria-live="polite">
         <div className="flashcard-side">
-          <span className="flashcard-language">{card.sourceLanguage}</span>
-          <p className="flashcard-text">
-            {card.question}
-          </p>
+          <span className="flashcard-language">{front.language}</span>
+          <p className="flashcard-text">{front.text}</p>
         </div>
         {revealed ? (
           <div className="flashcard-side flashcard-answer">
             <wa-divider></wa-divider>
-            <span className="flashcard-language">{card.targetLanguage}</span>
-            <p className="flashcard-text">{card.answer}</p>
+            <span className="flashcard-language">{back.language}</span>
+            <p className="flashcard-text">{back.text}</p>
           </div>
         ) : null}
       </article>

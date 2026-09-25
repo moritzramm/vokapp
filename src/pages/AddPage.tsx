@@ -17,7 +17,7 @@ export function AddPage() {
   const { create, vocabularies } = useVocabulary();
   const questionRef = useRef<{ focus: () => void } | null>(null);
   const [value, setValue] = useState<VocabularyInput>(() => {
-    const last = readSetting<LastPair>('lastLanguagePair', { sourceLanguage: 'Englisch', targetLanguage: 'Deutsch' });
+    const last = readSetting<LastPair>('lastLanguagePair', { sourceLanguage: 'Französisch', targetLanguage: 'Deutsch' });
     return { ...last, question: '', answer: '' };
   });
   const [busy, setBusy] = useState(false);

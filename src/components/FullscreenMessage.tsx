@@ -13,7 +13,7 @@ export function FullscreenMessage({ title, icon, loading, children }: Props) {
       {loading ? <wa-spinner className="fullscreen-spinner" aria-label="Wird geladen"></wa-spinner> : null}
       {icon ? <wa-icon name={icon} className="fullscreen-icon"></wa-icon> : null}
       <h1 className="wa-heading-l">{title}</h1>
-      {children ? <p className="wa-body-m wa-color-text-quiet">{children}</p> : null}
+      {children ? <div className="wa-body-m wa-color-text-quiet fullscreen-text">{children}</div> : null}
     </div>
   );
 }

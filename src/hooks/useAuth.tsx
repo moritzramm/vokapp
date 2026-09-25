@@ -4,11 +4,15 @@ import { getSession, onAuthChange } from '../services/authService';
 
 export type AuthState =
   | { status: 'loading' }
+  /** Session check did not finish in time (e.g. offline with an expired token). */
+  | { status: 'unreachable' }
   | { status: 'signed-out' }
   | { status: 'password-recovery'; user: User }
   | { status: 'signed-in'; user: User; session: Session };
 
 const AuthContext = createContext<AuthState>({ status: 'loading' });
+
+const SESSION_CHECK_TIMEOUT_MS = 8000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
@@ -30,11 +34,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       apply(session);
     });
 
+    // Supabase keeps retrying a token refresh while offline; don't leave the user
+    // looking at a spinner. A late result still replaces this state.
+    const timeout = window.setTimeout(() => {
+      setState((current) => (current.status === 'loading' ? { status: 'unreachable' } : current));
+    }, SESSION_CHECK_TIMEOUT_MS);
+
     getSession()
       .then(apply)
-      .catch(() => setState({ status: 'signed-out' }));
+      .catch(() => setState({ status: 'signed-out' }))
+      .finally(() => window.clearTimeout(timeout));
 
-    return unsubscribe;
+    return () => {
+      window.clearTimeout(timeout);
+      unsubscribe();
+    };
   }, []);
 
   return <AuthContext.Provider value={state}>{children}</AuthContext.Provider>;

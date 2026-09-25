@@ -1,5 +1,5 @@
 import { isNetworkError } from '../lib/errors';
-import type { LearningEvent, Vocabulary } from '../lib/types';
+import type { Direction, LearningEvent, Vocabulary } from '../lib/types';
 import { computeStatistics, type Statistics } from '../lib/statistics';
 import { toLearningEvent, toVocabulary } from './mappers';
 import { getSupabase } from './supabase';
@@ -17,6 +17,7 @@ interface PendingAnswer {
   vocabularyId: string;
   wasCorrect: boolean;
   answeredAt: string;
+  direction?: Direction;
 }
 
 export type RecordResult =
@@ -48,24 +49,38 @@ export function pendingAnswerCount(userId: string): number {
   return readOutbox(userId).length;
 }
 
+// Until migration 002 is applied, record_answer has no p_direction parameter.
+let directionSupported = true;
+
 async function send(answer: PendingAnswer): Promise<Vocabulary | null> {
-  const { data, error } = await getSupabase().rpc('record_answer', {
+  const args = {
     p_event_id: answer.eventId,
     p_vocabulary_id: answer.vocabularyId,
     p_was_correct: answer.wasCorrect,
     p_answered_at: answer.answeredAt,
-  });
+  };
+  let { data, error } = await getSupabase().rpc(
+    'record_answer',
+    directionSupported ? { ...args, p_direction: answer.direction ?? 'forward' } : args,
+  );
+  // PGRST202 = no function with these parameters: fall back to the old signature.
+  if (error?.code === 'PGRST202' && directionSupported) {
+    console.warn('record_answer without p_direction – please run supabase/migrations/002_learning_direction.sql');
+    directionSupported = false;
+    ({ data, error } = await getSupabase().rpc('record_answer', args));
+  }
   if (error) throw error;
   // A function returning a NULL composite comes back as null or as an all-null object.
   return data && data.id ? toVocabulary(data) : null;
 }
 
-export async function recordAnswer(userId: string, vocabularyId: string, wasCorrect: boolean): Promise<RecordResult> {
+export async function recordAnswer(userId: string, vocabularyId: string, wasCorrect: boolean, direction: Direction = 'forward'): Promise<RecordResult> {
   const answer: PendingAnswer = {
     eventId: crypto.randomUUID(),
     vocabularyId,
     wasCorrect,
     answeredAt: new Date().toISOString(),
+    direction,
   };
   try {
     const vocabulary = await send(answer);
