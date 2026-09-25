@@ -2,6 +2,7 @@ import { AppShell } from './components/AppShell';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { FullscreenMessage } from './components/FullscreenMessage';
 import { AuthProvider, useAuth } from './hooks/useAuth';
+import { useMediaQuery } from './hooks/useOnline';
 import { ThemeProvider } from './hooks/useTheme';
 import { VocabularyProvider } from './hooks/useVocabulary';
 import { AuthPage } from './pages/AuthPage';
@@ -9,6 +10,8 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { configError } from './services/supabase';
 
 export function App() {
+  // Phones: toasts at the bottom (thumb zone, above the nav bar). Larger screens: top right.
+  const phone = useMediaQuery('(max-width: 767px)');
   return (
     <ThemeProvider>
       {configError ? (
@@ -22,7 +25,7 @@ export function App() {
           </AuthProvider>
         </ErrorBoundary>
       )}
-      <wa-toast placement="top-center"></wa-toast>
+      <wa-toast placement={phone ? 'bottom-center' : 'top-end'}></wa-toast>
     </ThemeProvider>
   );
 }

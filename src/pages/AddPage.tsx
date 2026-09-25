@@ -4,9 +4,10 @@ import { VocabularyForm } from '../components/VocabularyForm';
 import { toUserMessage } from '../lib/errors';
 import { readSetting, writeSetting } from '../lib/settings';
 import { notify } from '../lib/toast';
-import type { VocabularyInput } from '../lib/types';
+import type { Vocabulary, VocabularyInput } from '../lib/types';
 import { duplicateKey } from '../lib/validation';
 import { useVocabulary } from '../hooks/useVocabulary';
+import { InlineError } from './VocabularyListPage';
 
 interface LastPair {
   sourceLanguage: string;
@@ -22,6 +23,8 @@ export function AddPage() {
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Only for this visit of the page; the data itself is in Supabase.
+  const [added, setAdded] = useState<Vocabulary[]>([]);
 
   const isDuplicate = value.question.trim() !== '' && vocabularies.some((v) => duplicateKey(v) === duplicateKey(value));
 
@@ -30,9 +33,10 @@ export function AddPage() {
     setError(null);
     try {
       // The user id is taken from the authenticated session inside the provider.
-      await create(value);
+      const created = await create(value);
       writeSetting<LastPair>('lastLanguagePair', { sourceLanguage: value.sourceLanguage.trim(), targetLanguage: value.targetLanguage.trim() });
-      notify(`„${value.question.trim()}“ wurde hinzugefügt.`);
+      notify(`„${created.question}“ hinzugefügt.`);
+      setAdded((list) => [created, ...list]);
       setValue((v) => ({ ...v, question: '', answer: '' }));
       focusWhenReady(questionRef.current);
     } catch (e) {
@@ -43,28 +47,38 @@ export function AddPage() {
     }
   };
 
+  // Rows deleted elsewhere disappear from the "just added" list as well.
+  const stillThere = added.filter((a) => vocabularies.some((v) => v.id === a.id));
+
   return (
-    <div className="page-narrow">
-      <wa-card>
+    <div className="add-layout">
+      <div className="panel">
         <VocabularyForm questionRef={questionRef} value={value} onChange={setValue} onSubmit={save}>
-          {isDuplicate ? (
-            <wa-callout variant="neutral" size="s">
-              <wa-icon slot="icon" name="circle-check"></wa-icon>
-              Diese Vokabel gibt es für dieses Sprachpaar bereits. Du kannst sie trotzdem speichern.
-            </wa-callout>
-          ) : null}
-          {error ? (
-            <wa-callout variant="danger" size="s">
-              <wa-icon slot="icon" name="circle-xmark"></wa-icon>
-              {error}
-            </wa-callout>
-          ) : null}
+          {isDuplicate ? <p className="field-note">Diese Vokabel gibt es für dieses Sprachpaar schon. Du kannst sie trotzdem speichern.</p> : null}
+          {error ? <InlineError>{error}</InlineError> : null}
           <wa-button type="submit" variant="brand" size="l" loading={busy} className="full-width">
-            <wa-icon slot="start" name="plus"></wa-icon>
-            Vokabel hinzufügen
+            Speichern
           </wa-button>
         </VocabularyForm>
-      </wa-card>
+      </div>
+
+      {stillThere.length ? (
+        <section className="stack-section" aria-labelledby="added-heading">
+          <h2 id="added-heading" className="section-title">
+            Gerade hinzugefügt
+          </h2>
+          <ul className="grouped-list">
+            {stillThere.map((v) => (
+              <li key={v.id} className="grouped-row">
+                <span className="row-main">
+                  <span className="row-title">{v.question}</span>
+                  <span className="row-sub">{v.answer}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

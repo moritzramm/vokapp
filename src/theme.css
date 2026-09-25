@@ -1,0 +1,152 @@
+/*
+ * "Karteikasten" theme on top of Web Awesome.
+ *
+ * The school index card is the reference: white card, red header rule,
+ * light-blue ruling, royal-blue ("Königsblau") ink, red for corrections.
+ * Only --wa-* tokens are overridden, so every Web Awesome component follows.
+ * Palette scales are defined once; semantic tokens are set per color scheme.
+ */
+
+:root {
+  /* Königsblau (ink) – hue 266 */
+  --wa-color-brand-95: oklch(0.965 0.018 266);
+  --wa-color-brand-90: oklch(0.925 0.035 266);
+  --wa-color-brand-80: oklch(0.84 0.07 266);
+  --wa-color-brand-70: oklch(0.75 0.11 266);
+  --wa-color-brand-60: oklch(0.64 0.15 266);
+  --wa-color-brand-50: oklch(0.54 0.18 266);
+  --wa-color-brand-40: oklch(0.45 0.17 266);
+  --wa-color-brand-30: oklch(0.37 0.14 266);
+  --wa-color-brand-20: oklch(0.29 0.1 266);
+  --wa-color-brand-10: oklch(0.22 0.07 266);
+  --wa-color-brand-05: oklch(0.17 0.05 266);
+
+  /* Cool slate neutrals (paper, ruling, ink greys) */
+  --wa-color-neutral-95: oklch(0.967 0.006 266);
+  --wa-color-neutral-90: oklch(0.92 0.012 266);
+  --wa-color-neutral-80: oklch(0.84 0.016 266);
+  --wa-color-neutral-70: oklch(0.74 0.02 266);
+  --wa-color-neutral-60: oklch(0.62 0.024 266);
+  --wa-color-neutral-50: oklch(0.53 0.026 266);
+  --wa-color-neutral-40: oklch(0.45 0.03 266);
+  --wa-color-neutral-30: oklch(0.36 0.034 266);
+  --wa-color-neutral-20: oklch(0.29 0.03 266);
+  --wa-color-neutral-10: oklch(0.225 0.026 266);
+  --wa-color-neutral-05: oklch(0.19 0.022 266);
+
+  /* Korrekturrot */
+  --wa-color-danger-95: oklch(0.96 0.02 22);
+  --wa-color-danger-90: oklch(0.92 0.045 22);
+  --wa-color-danger-80: oklch(0.84 0.09 22);
+  --wa-color-danger-70: oklch(0.75 0.14 22);
+  --wa-color-danger-60: oklch(0.65 0.18 22);
+  --wa-color-danger-50: oklch(0.56 0.19 22);
+  --wa-color-danger-40: oklch(0.5 0.18 22);
+  --wa-color-danger-30: oklch(0.41 0.15 22);
+  --wa-color-danger-20: oklch(0.32 0.11 22);
+  --wa-color-danger-10: oklch(0.24 0.07 22);
+  --wa-color-danger-05: oklch(0.19 0.05 22);
+
+  /* Gewusst-Grün */
+  --wa-color-success-95: oklch(0.965 0.025 155);
+  --wa-color-success-90: oklch(0.92 0.05 155);
+  --wa-color-success-80: oklch(0.84 0.09 155);
+  --wa-color-success-70: oklch(0.76 0.12 155);
+  --wa-color-success-60: oklch(0.66 0.13 155);
+  --wa-color-success-50: oklch(0.56 0.13 155);
+  --wa-color-success-40: oklch(0.48 0.11 155);
+  --wa-color-success-30: oklch(0.39 0.09 155);
+  --wa-color-success-20: oklch(0.3 0.07 155);
+  --wa-color-success-10: oklch(0.23 0.05 155);
+  --wa-color-success-05: oklch(0.18 0.04 155);
+
+  /* Typography */
+  --app-font-card: 'Literata Variable', 'Literata', Georgia, 'Times New Roman', serif;
+  --wa-font-family-body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --wa-font-family-heading: var(--wa-font-family-body);
+  --wa-font-weight-heading: 650;
+
+  /* Radius hierarchy: card 6 → controls 10 → sheets 16 → pills */
+  --app-radius-card: 6px;
+  --app-radius-sheet: 16px;
+  --wa-border-radius-s: 6px;
+  --wa-border-radius-m: 10px;
+  --wa-border-radius-l: 16px;
+  --wa-form-control-border-radius: 10px;
+  --wa-panel-border-radius: 16px;
+
+  /* Layout */
+  --app-gutter: 1rem;
+  --app-bottom-nav-height: 4.25rem;
+  --app-content-width: 72rem;
+  --app-narrow-width: 38rem;
+}
+
+/* ---------------------------------------------------------------- light */
+html.wa-light {
+  color-scheme: light;
+
+  --app-paper: #fbfbf9;
+  --app-card: #ffffff;
+  --app-rule: #d9e2f1;
+  --app-card-header: #c0303a;
+
+  --wa-color-surface-default: var(--app-paper);
+  --wa-color-surface-raised: var(--app-card);
+  --wa-color-surface-lowered: oklch(0.955 0.006 266);
+  --wa-color-surface-border: var(--app-rule);
+
+  --wa-color-text-normal: #1c2656;
+  --wa-color-text-quiet: oklch(0.47 0.035 266);
+  --wa-color-text-link: #2446b0;
+  --wa-color-focus: #2446b0;
+
+  --wa-color-brand-fill-loud: #2446b0;
+  --wa-color-brand-on-loud: #ffffff;
+  --wa-color-brand-on-quiet: #2446b0;
+  --wa-color-brand-fill-quiet: var(--wa-color-brand-95);
+
+  --wa-color-danger-fill-loud: #c0303a;
+  --wa-color-danger-on-quiet: #b02a34;
+  --wa-color-success-fill-loud: #1e7549;
+  --wa-color-success-on-quiet: #1b6b43;
+
+  --app-shadow-paper: 0 1px 2px oklch(0.3 0.05 266 / 0.08), 0 12px 28px -12px oklch(0.3 0.08 266 / 0.22);
+  --app-shadow-overlay: 0 24px 60px -20px oklch(0.25 0.06 266 / 0.35);
+}
+
+/* ----------------------------------------------------------------- dark */
+/* "Night desk": deep slate, the card stays the brightest surface. */
+html.wa-dark {
+  color-scheme: dark;
+
+  --app-paper: #171b24;
+  --app-card: #20263a;
+  --app-rule: #2e3650;
+  --app-card-header: #ff8a8f;
+
+  --wa-color-surface-default: var(--app-paper);
+  --wa-color-surface-raised: var(--app-card);
+  --wa-color-surface-lowered: #131720;
+  --wa-color-surface-border: var(--app-rule);
+
+  --wa-color-text-normal: #e6eaf5;
+  --wa-color-text-quiet: oklch(0.74 0.025 266);
+  --wa-color-text-link: #93a8ff;
+  --wa-color-focus: #93a8ff;
+
+  --wa-color-brand-fill-loud: #93a8ff;
+  --wa-color-brand-on-loud: #101a44;
+  --wa-color-brand-on-quiet: #a9b9ff;
+  --wa-color-brand-fill-quiet: oklch(0.3 0.07 266);
+
+  --wa-color-danger-fill-loud: #ff8a8f;
+  --wa-color-danger-on-loud: #3a0a0e;
+  --wa-color-danger-on-quiet: #ff9ea2;
+  --wa-color-success-fill-loud: #6fd6a0;
+  --wa-color-success-on-loud: #062a17;
+  --wa-color-success-on-quiet: #7fe0ad;
+
+  --app-shadow-paper: 0 1px 2px oklch(0 0 0 / 0.4), 0 16px 36px -14px oklch(0 0 0 / 0.6);
+  --app-shadow-overlay: 0 24px 60px -20px oklch(0 0 0 / 0.7);
+}

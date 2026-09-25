@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
+import { Logo } from '../components/AppShell';
 import { MIN_PASSWORD_LENGTH, valueOf } from '../components/fields';
 import { toUserMessage } from '../lib/errors';
+import { InlineError } from './VocabularyListPage';
 import { requestPasswordReset, signIn, signUp } from '../services/authService';
 import { initialAuthError } from '../services/supabase';
 
@@ -70,31 +72,26 @@ export function AuthPage() {
 
   return (
     <div className="auth-screen">
-      <div className="auth-panel wa-stack wa-gap-xl">
-        <div className="wa-stack wa-gap-xs wa-align-items-center wa-text-center">
-          <span className="brand-mark brand-mark-large" aria-hidden="true">
-            <wa-icon name="layer-group"></wa-icon>
-          </span>
-          <p className="wa-heading-2xl">Vokabeltrainer</p>
-          <h1 className="wa-body-l wa-color-text-quiet">{heading}</h1>
+      <div className="auth-panel">
+        <div className="auth-head">
+          <Logo size="l" />
+          <p className="auth-wordmark">Vokabeltrainer</p>
+          <h1 className="auth-heading">{heading}</h1>
         </div>
 
-        <wa-card className="auth-card">
-          <form className="wa-stack wa-gap-l" onSubmit={onSubmit}>
+        <div className="auth-card">
+          <form className="auth-form" onSubmit={onSubmit}>
             {error ? (
-              <wa-callout variant="danger" size="s">
-                <wa-icon slot="icon" name="circle-xmark"></wa-icon>
-                {error}
-              </wa-callout>
+              <InlineError>{error}</InlineError>
             ) : null}
             {info ? (
-              <wa-callout variant="success" size="s">
-                <wa-icon slot="icon" name="envelope"></wa-icon>
-                {info}
-              </wa-callout>
+              <p className="notice notice-success" role="status">
+                <wa-icon name="envelope"></wa-icon>
+                <span>{info}</span>
+              </p>
             ) : null}
             {mode === 'forgot' ? (
-              <p className="wa-body-s wa-color-text-quiet">Gib Deine E-Mail-Adresse ein. Wir schicken Dir einen Link, mit dem Du ein neues Passwort festlegen kannst.</p>
+              <p className="field-note">Gib Deine E-Mail-Adresse ein. Wir schicken Dir einen Link, mit dem Du ein neues Passwort festlegen kannst.</p>
             ) : null}
 
             <wa-input
@@ -151,12 +148,12 @@ export function AuthPage() {
               </wa-button>
             ) : null}
           </form>
-        </wa-card>
+        </div>
 
-        <div className="wa-stack wa-gap-s wa-align-items-center">
+        <div className="auth-switch">
           {mode === 'login' ? (
             <>
-              <span className="wa-body-s wa-color-text-quiet">Noch kein Konto?</span>
+              <span className="quiet-text">Noch kein Konto?</span>
               <wa-button appearance="outlined" size="l" className="full-width" onClick={() => switchMode('register')}>
                 Konto erstellen
               </wa-button>

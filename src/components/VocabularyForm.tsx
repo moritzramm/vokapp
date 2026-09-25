@@ -3,7 +3,9 @@ import type { VocabularyInput } from '../lib/types';
 import { LIMITS } from '../lib/validation';
 import { useVocabulary } from '../hooks/useVocabulary';
 import { valueOf } from './fields';
-import { LanguageField } from './LanguageField';
+import { LanguagePairField } from './LanguagePairField';
+
+type Focusable = { focus: () => void };
 
 interface Props {
   id?: string;
@@ -15,8 +17,6 @@ interface Props {
   questionRef?: RefObject<Focusable | null>;
   children?: React.ReactNode;
 }
-
-type Focusable = { focus: () => void };
 
 export function useUsedLanguages(): string[] {
   const { vocabularies } = useVocabulary();
@@ -41,17 +41,14 @@ export function VocabularyForm({ id, value, onChange, onSubmit, questionRef, chi
   };
 
   return (
-    <form id={id} className="vocab-form wa-stack wa-gap-l" onSubmit={submit}>
-      <div className="language-pair">
-        <LanguageField label="Ausgangssprache" value={value.sourceLanguage} usedLanguages={usedLanguages} onChange={(sourceLanguage) => set({ sourceLanguage })} />
-        <LanguageField label="Zielsprache" value={value.targetLanguage} usedLanguages={usedLanguages} onChange={(targetLanguage) => set({ targetLanguage })} />
-      </div>
+    <form id={id} className="vocab-form" onSubmit={submit}>
+      <LanguagePairField source={value.sourceLanguage} target={value.targetLanguage} usedLanguages={usedLanguages} onChange={(pair) => set(pair)} />
       <wa-input
         ref={(el: Focusable | null) => {
           if (questionRef) questionRef.current = el;
         }}
-        label="Vokabel"
-        placeholder="z. B. apple"
+        label={value.sourceLanguage ? `Vokabel (${value.sourceLanguage})` : 'Vokabel'}
+        placeholder="z. B. la maison"
         size="l"
         required
         maxlength={LIMITS.text}
@@ -61,8 +58,8 @@ export function VocabularyForm({ id, value, onChange, onSubmit, questionRef, chi
         onInput={(e) => set({ question: valueOf(e) })}
       ></wa-input>
       <wa-input
-        label="Übersetzung"
-        placeholder="z. B. Apfel"
+        label={value.targetLanguage ? `Übersetzung (${value.targetLanguage})` : 'Übersetzung'}
+        placeholder="z. B. das Haus"
         size="l"
         required
         maxlength={LIMITS.text}

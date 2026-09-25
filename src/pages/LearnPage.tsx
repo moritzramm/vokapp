@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { focusWhenReady, valueOf } from '../components/fields';
 import { toUserMessage } from '../lib/errors';
 import { languagePairLabel } from '../lib/languages';
@@ -7,6 +7,7 @@ import { readSetting, SESSION_SIZES, writeSetting, type SessionSize } from '../l
 import { notify } from '../lib/toast';
 import type { Direction, DirectionMode, LearningMode, Vocabulary } from '../lib/types';
 import { useUser } from '../hooks/useAuth';
+import { useFocusMode } from '../hooks/useFocusMode';
 import { href } from '../hooks/useRoute';
 import { useVocabulary } from '../hooks/useVocabulary';
 import { recordAnswer } from '../services/learningService';
@@ -27,6 +28,13 @@ interface Card {
   direction: Direction;
 }
 
+interface SessionResult {
+  correct: number;
+  incorrect: number;
+  /** Cards answered wrong, in the order they were asked. */
+  wrong: Card[];
+}
+
 function toCards(vocabularies: Vocabulary[], mode: DirectionMode): Card[] {
   return vocabularies.map((vocabulary) => ({
     vocabulary,
@@ -34,12 +42,7 @@ function toCards(vocabularies: Vocabulary[], mode: DirectionMode): Card[] {
   }));
 }
 
-interface SessionResult {
-  correct: number;
-  incorrect: number;
-}
-
-type Phase = { name: 'setup' } | { name: 'session'; id: number; cards: Card[] } | { name: 'done'; total: number; result: SessionResult };
+type Phase = { name: 'setup' } | { name: 'session'; id: number; cards: Card[] } | { name: 'done'; result: SessionResult };
 
 export function LearnPage() {
   const { vocabularies, loading } = useVocabulary();
@@ -58,11 +61,14 @@ export function LearnPage() {
     if (patch.size !== undefined) writeSetting('sessionSize', patch.size);
   };
 
+  const startWith = (cards: Card[]) => {
+    // id: a fresh session (new component state) on every start, even with identical cards
+    if (cards.length) setPhase({ name: 'session', id: Date.now(), cards });
+  };
+
   const start = useCallback(() => {
     const pool = config.pair === ALL_PAIRS ? vocabularies : vocabularies.filter((v) => pairKey(v) === config.pair);
-    const selected = buildSession(config.mode, pool, config.size || pool.length);
-    // id: a fresh session (new component state) on every start, even with identical cards
-    if (selected.length) setPhase({ name: 'session', id: Date.now(), cards: toCards(selected, config.direction) });
+    startWith(toCards(buildSession(config.mode, pool, config.size || pool.length), config.direction));
   }, [config, vocabularies]);
 
   if (phase.name === 'session') {
@@ -70,25 +76,31 @@ export function LearnPage() {
       <FlashcardSession
         key={phase.id}
         cards={phase.cards}
-        onFinish={(result) => {
-          const total = result.correct + result.incorrect;
-          setPhase(total ? { name: 'done', total, result } : { name: 'setup' });
-        }}
+        onFinish={(result) => setPhase(result.correct + result.incorrect ? { name: 'done', result } : { name: 'setup' })}
       />
     );
   }
 
   if (phase.name === 'done') {
-    return <SessionSummary total={phase.total} result={phase.result} onRestart={start} onOverview={() => setPhase({ name: 'setup' })} />;
+    // Repeat the wrong cards with the latest data (e.g. edited in the meantime), same directions.
+    const repeatWrong = () => {
+      const byId = new Map(vocabularies.map((v) => [v.id, v]));
+      startWith(
+        phase.result.wrong
+          .map((card) => ({ ...card, vocabulary: byId.get(card.vocabulary.id) }))
+          .filter((card): card is Card => card.vocabulary !== undefined),
+      );
+    };
+    return <SessionSummary result={phase.result} onRepeatWrong={repeatWrong} onRestart={start} onDone={() => setPhase({ name: 'setup' })} />;
   }
 
   if (loading && vocabularies.length === 0) {
-    return <wa-skeleton effect="sheen" className="skeleton-setup"></wa-skeleton>;
+    return <wa-skeleton effect="sheen" className="skeleton-block"></wa-skeleton>;
   }
 
   if (vocabularies.length === 0) {
     return (
-      <EmptyState icon="layer-group" title="Bereit zum Lernen?" text="Lege zuerst ein paar Vokabeln an. Danach kannst Du sie hier mit Karteikarten üben.">
+      <EmptyState title="Noch nichts zu lernen" text="Lege Deine ersten Vokabeln an oder importiere eine Liste unter Konto → JSON importieren.">
         <wa-button variant="brand" size="l" href={href('neu')}>
           <wa-icon slot="start" name="plus"></wa-icon>
           Vokabel hinzufügen
@@ -103,6 +115,15 @@ export function LearnPage() {
 // ---------------------------------------------------------------------------
 // Setup
 // ---------------------------------------------------------------------------
+
+const MODE_LABEL: Record<LearningMode, string> = { all: 'Alle Vokabeln', difficult: 'Nur schwierige' };
+
+function isToday(iso: string | null): boolean {
+  if (!iso) return false;
+  const d = new Date(iso);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+}
 
 function SessionSetup({
   vocabularies,
@@ -130,6 +151,8 @@ function SessionSetup({
   const pair = config.pair === ALL_PAIRS || pairs.some(([key]) => key === config.pair) ? config.pair : ALL_PAIRS;
   const pool = pair === ALL_PAIRS ? vocabularies : vocabularies.filter((v) => pairKey(v) === pair);
   const difficultCount = pool.filter(isDifficult).length;
+  const neverAsked = pool.filter((v) => !v.lastAskedAt).length;
+  const learnedToday = pool.filter((v) => isToday(v.lastAskedAt)).length;
   const available = config.mode === 'difficult' ? difficultCount : pool.length;
   const sessionLength = config.size ? Math.min(config.size, available) : available;
 
@@ -137,100 +160,124 @@ function SessionSetup({
   const single = pair !== ALL_PAIRS || pairs.length === 1 ? pool[0] : undefined;
   const from = single?.sourceLanguage ?? 'Vokabel';
   const to = single?.targetLanguage ?? 'Übersetzung';
-  const directionHint =
-    config.direction === 'forward'
-      ? `${from} wird gezeigt, ${to} ist gefragt.`
-      : config.direction === 'reverse'
-        ? `${to} wird gezeigt, ${from} ist gefragt.`
-        : `Jede Karte kommt zufällig in eine der beiden Richtungen.`;
+  const directionText = config.direction === 'forward' ? `${from} → ${to}` : config.direction === 'reverse' ? `${to} → ${from}` : 'Richtung gemischt';
+  const pairText = pair === ALL_PAIRS ? (pairs.length > 1 ? 'alle Sprachpaare' : '') : (pairs.find(([key]) => key === pair)?.[1].label ?? '');
 
   return (
-    <div className="page-narrow wa-stack wa-gap-xl">
-      <wa-radio-group
-        label="Was möchtest Du lernen?"
-        orientation="horizontal"
-        size="l"
-        className="segmented"
-        value={config.mode}
-        onInput={(e) => onChange({ mode: valueOf(e) as LearningMode })}
-      >
-        <wa-radio appearance="button" value="all">
-          Alle · {pool.length}
-        </wa-radio>
-        <wa-radio appearance="button" value="difficult">
-          <wa-icon name="fire"></wa-icon>&nbsp;Schwierige · {difficultCount}
-        </wa-radio>
-      </wa-radio-group>
+    <div className="learn-layout">
+      <section className="learn-start" aria-labelledby="learn-start-heading">
+        <h2 id="learn-start-heading" className="deck-sentence">
+          {pool.length === 1 ? '1 Vokabel' : `${pool.length} Vokabeln`}
+          {difficultCount ? `, davon ${difficultCount} schwierig` : ''}
+        </h2>
 
-      {pairs.length > 1 ? (
-        <wa-select label="Sprachen" size="l" value={pair} onInput={(e) => onChange({ pair: valueOf(e) || ALL_PAIRS })}>
-          <wa-option value={ALL_PAIRS}>Alle Sprachpaare</wa-option>
-          {pairs.map(([key, { label, count }]) => (
-            <wa-option key={key} value={key}>
-              {label} ({count})
-            </wa-option>
-          ))}
-        </wa-select>
-      ) : null}
+        {available === 0 ? (
+          <p className="notice notice-success">
+            <wa-icon name="circle-check"></wa-icon>
+            Keine schwierigen Vokabeln{pair !== ALL_PAIRS ? ' in diesem Sprachpaar' : ''}. Stell unter „Runde anpassen“ auf „Alle“, um weiterzuüben.
+          </p>
+        ) : null}
 
-      <wa-radio-group
-        label="Richtung"
-        hint={directionHint}
-        orientation="horizontal"
-        size="l"
-        className="segmented"
-        value={config.direction}
-        onInput={(e) => onChange({ direction: valueOf(e) as DirectionMode })}
-      >
-        <wa-radio appearance="button" value="forward" aria-label={`${from} nach ${to}`}>
-          {single ? `${abbreviate(from)} → ${abbreviate(to)}` : 'Normal'}
-        </wa-radio>
-        <wa-radio appearance="button" value="reverse" aria-label={`${to} nach ${from}`}>
-          {single ? `${abbreviate(to)} → ${abbreviate(from)}` : 'Umgekehrt'}
-        </wa-radio>
-        <wa-radio appearance="button" value="mixed">
-          Gemischt
-        </wa-radio>
-      </wa-radio-group>
+        <wa-button variant="brand" size="xl" className="start-button" disabled={available === 0} onClick={onStart}>
+          {sessionLength === 1 ? '1 Karte lernen' : `${sessionLength} Karten lernen`}
+        </wa-button>
 
-      <wa-radio-group
-        label="Karten pro Runde"
-        orientation="horizontal"
-        size="l"
-        className="segmented"
-        value={String(config.size)}
-        onInput={(e) => onChange({ size: Number(valueOf(e)) as SessionSize })}
-      >
-        {SESSION_SIZES.map((size) => (
-          <wa-radio key={size} appearance="button" value={String(size)}>
-            {size === 0 ? 'Alle' : size}
-          </wa-radio>
-        ))}
-      </wa-radio-group>
+        <p className="round-summary">{[MODE_LABEL[config.mode], directionText, pairText].filter(Boolean).join(', ')}</p>
 
-      {config.mode === 'difficult' ? (
-        <p className="wa-body-s wa-color-text-quiet">
-          Schwierig sind Vokabeln, bei denen mindestens jede vierte Antwort falsch war. Häufig falsch beantwortete und lange nicht geübte Karten kommen öfter
-          dran.
-        </p>
-      ) : null}
+        <wa-details summary="Runde anpassen" appearance="plain" className="round-options">
+          <div className="round-options-body">
+            <wa-radio-group
+              label="Karten"
+              orientation="horizontal"
+              size="m"
+              className="segmented"
+              value={config.mode}
+              onInput={(e) => onChange({ mode: valueOf(e) as LearningMode })}
+            >
+              <wa-radio appearance="button" value="all">
+                Alle ({pool.length})
+              </wa-radio>
+              <wa-radio appearance="button" value="difficult">
+                Schwierige ({difficultCount})
+              </wa-radio>
+            </wa-radio-group>
 
-      {available === 0 ? (
-        <wa-callout variant="success">
-          <wa-icon slot="icon" name="circle-check"></wa-icon>
-          Aktuell gibt es keine schwierigen Vokabeln{pair !== ALL_PAIRS ? ' in diesem Sprachpaar' : ''}. Stark!
-        </wa-callout>
-      ) : null}
+            <wa-radio-group
+              label="Richtung"
+              orientation="horizontal"
+              size="m"
+              className="segmented"
+              value={config.direction}
+              onInput={(e) => onChange({ direction: valueOf(e) as DirectionMode })}
+            >
+              <wa-radio appearance="button" value="forward" aria-label={`${from} nach ${to}`}>
+                {single ? `${abbreviate(from)} → ${abbreviate(to)}` : 'Normal'}
+              </wa-radio>
+              <wa-radio appearance="button" value="reverse" aria-label={`${to} nach ${from}`}>
+                {single ? `${abbreviate(to)} → ${abbreviate(from)}` : 'Umgekehrt'}
+              </wa-radio>
+              <wa-radio appearance="button" value="mixed">
+                Gemischt
+              </wa-radio>
+            </wa-radio-group>
 
-      <wa-button variant="brand" size="xl" className="full-width" disabled={available === 0} onClick={onStart}>
-        <wa-icon slot="start" name="graduation-cap"></wa-icon>
-        {sessionLength === 1 ? '1 Karte lernen' : `${sessionLength} Karten lernen`}
-      </wa-button>
+            {pairs.length > 1 ? (
+              <wa-select label="Sprachpaar" size="m" value={pair} onInput={(e) => onChange({ pair: valueOf(e) || ALL_PAIRS })}>
+                <wa-option value={ALL_PAIRS}>Alle Sprachpaare</wa-option>
+                {pairs.map(([key, { label, count }]) => (
+                  <wa-option key={key} value={key}>
+                    {label} ({count})
+                  </wa-option>
+                ))}
+              </wa-select>
+            ) : null}
+
+            <wa-radio-group
+              label="Karten pro Runde"
+              orientation="horizontal"
+              size="m"
+              className="segmented"
+              value={String(config.size)}
+              onInput={(e) => onChange({ size: Number(valueOf(e)) as SessionSize })}
+            >
+              {SESSION_SIZES.map((size) => (
+                <wa-radio key={size} appearance="button" value={String(size)}>
+                  {size === 0 ? 'Alle' : size}
+                </wa-radio>
+              ))}
+            </wa-radio-group>
+
+            <p className="field-note">
+              Schwierig ist eine Vokabel, wenn mindestens jede vierte Antwort falsch war. Häufig falsche und lange nicht geübte Karten kommen öfter dran.
+            </p>
+          </div>
+        </wa-details>
+      </section>
+
+      <aside className="deck-facts" aria-labelledby="deck-facts-heading">
+        <h2 id="deck-facts-heading" className="section-title">
+          Dein Stapel
+        </h2>
+        <dl className="fact-list">
+          <div>
+            <dt>Noch nie geübt</dt>
+            <dd>{neverAsked}</dd>
+          </div>
+          <div>
+            <dt>Schwierig</dt>
+            <dd>{difficultCount}</dd>
+          </div>
+          <div>
+            <dt>Heute geübt</dt>
+            <dd>{learnedToday}</dd>
+          </div>
+        </dl>
+      </aside>
     </div>
   );
 }
 
-/** Short language label for the direction buttons (e.g. "Französisch" → "FR"); the hint shows the full names. */
+/** Short language label for the direction buttons (e.g. "Französisch" → "FR"); full names are in the summary line. */
 function abbreviate(language: string): string {
   const known: Record<string, string> = { Deutsch: 'DE', Englisch: 'EN', Französisch: 'FR' };
   return known[language] ?? (language.length > 8 ? `${language.slice(0, 6)}.` : language);
@@ -240,29 +287,41 @@ function abbreviate(language: string): string {
 // Session
 // ---------------------------------------------------------------------------
 
+const FEEDBACK_MS = 180;
+const SWIPE_THRESHOLD = 0.28; // share of the card width
+
 function FlashcardSession({ cards, onFinish }: { cards: Card[]; onFinish: (result: SessionResult) => void }) {
+  useFocusMode();
   const user = useUser();
   const { applyServerRow, forgetRow, refreshPending } = useVocabulary();
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
-  const result = useRef<SessionResult>({ correct: 0, incorrect: 0 });
+  const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
+  const [dragX, setDragX] = useState(0);
+  const result = useRef<SessionResult>({ correct: 0, incorrect: 0, wrong: [] });
   const warnedOffline = useRef(false);
   const revealButton = useRef<{ focus: () => void } | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number; id: number } | null>(null);
 
   const { vocabulary: card, direction } = cards[index];
   const front = direction === 'forward' ? { language: card.sourceLanguage, text: card.question } : { language: card.targetLanguage, text: card.answer };
   const back = direction === 'forward' ? { language: card.targetLanguage, text: card.answer } : { language: card.sourceLanguage, text: card.question };
-  const progress = (index / cards.length) * 100;
 
   useEffect(() => {
     if (!revealed) focusWhenReady(revealButton.current);
   }, [index, revealed]);
 
+  const finish = useCallback(() => onFinish({ ...result.current, wrong: [...result.current.wrong] }), [onFinish]);
+
   const answer = useCallback(
     (wasCorrect: boolean) => {
-      if (!revealed) return;
+      if (!revealed || feedback) return;
       if (wasCorrect) result.current.correct++;
-      else result.current.incorrect++;
+      else {
+        result.current.incorrect++;
+        result.current.wrong.push(cards[index]);
+      }
 
       // Persist immediately (not at the end of the session), without blocking the next card.
       recordAnswer(user.id, card.id, wasCorrect, direction)
@@ -273,20 +332,25 @@ function FlashcardSession({ cards, onFinish }: { cards: Card[]; onFinish: (resul
             refreshPending();
             if (!warnedOffline.current) {
               warnedOffline.current = true;
-              notify('Keine Verbindung: Deine Antworten werden gespeichert, sobald Du wieder online bist.', 'warning');
+              notify('Offline: Deine Antworten werden gespeichert, sobald Du wieder online bist.', 'warning');
             }
           }
         })
         .catch((error) => notify(toUserMessage(error, 'Die Antwort konnte nicht gespeichert werden.'), 'danger'));
 
-      if (index + 1 >= cards.length) {
-        onFinish({ ...result.current });
-      } else {
-        setIndex(index + 1);
-        setRevealed(false);
-      }
+      // Short colour confirmation on the card, then the next card.
+      setFeedback(wasCorrect ? 'correct' : 'wrong');
+      window.setTimeout(() => {
+        setFeedback(null);
+        setDragX(0);
+        if (index + 1 >= cards.length) finish();
+        else {
+          setIndex(index + 1);
+          setRevealed(false);
+        }
+      }, FEEDBACK_MS);
     },
-    [revealed, user.id, card, direction, index, cards.length, onFinish, applyServerRow, forgetRow, refreshPending],
+    [revealed, feedback, cards, index, user.id, card, direction, finish, applyServerRow, forgetRow, refreshPending],
   );
 
   // Keyboard: Space/Enter = reveal, ← or 1 = falsch, → or 2 = gewusst
@@ -302,48 +366,94 @@ function FlashcardSession({ cards, onFinish }: { cards: Card[]; onFinish: (resul
       } else if (revealed && (event.key === 'ArrowRight' || event.key === '2')) {
         event.preventDefault();
         answer(true);
+      } else if (event.key === 'Escape') {
+        finish();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [revealed, answer]);
+  }, [revealed, answer, finish]);
+
+  // Swipe (touch or mouse) once the answer is visible: left = falsch, right = gewusst.
+  const onPointerDown = (e: ReactPointerEvent) => {
+    if (!revealed || feedback) return;
+    drag.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
+  };
+  const onPointerMove = (e: ReactPointerEvent) => {
+    if (!drag.current || drag.current.id !== e.pointerId) return;
+    const dx = e.clientX - drag.current.x;
+    const dy = e.clientY - drag.current.y;
+    if (dragX !== 0 || (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy))) {
+      if (dragX === 0) {
+        try {
+          stageRef.current?.setPointerCapture(e.pointerId);
+        } catch {
+          // pointer already gone; dragging still works while it stays over the card
+        }
+      }
+      setDragX(dx);
+    }
+  };
+  const onPointerUp = (e: ReactPointerEvent) => {
+    if (!drag.current || drag.current.id !== e.pointerId) return;
+    drag.current = null;
+    const width = stageRef.current?.offsetWidth ?? 320;
+    if (Math.abs(dragX) > width * SWIPE_THRESHOLD) answer(dragX > 0);
+    else setDragX(0);
+  };
+
+  const swipeIntent = dragX > 24 ? 'correct' : dragX < -24 ? 'wrong' : null;
+  const state = feedback ?? swipeIntent;
 
   return (
     <div className="session">
-      <div className="session-header">
-        <div className="wa-split wa-align-items-center">
-          <span className="session-count" aria-live="polite">
-            {index + 1} / {cards.length}
-          </span>
-          <wa-button appearance="plain" size="m" onClick={() => onFinish({ ...result.current })}>
-            Beenden
-          </wa-button>
-        </div>
-        <wa-progress-bar value={progress} label="Fortschritt der Lernrunde" className="session-progress"></wa-progress-bar>
+      <div className="session-bar">
+        <wa-button appearance="plain" size="m" className="session-close" aria-label="Runde beenden" title="Runde beenden (Esc)" onClick={finish}>
+          <wa-icon name="xmark"></wa-icon>
+        </wa-button>
+        <wa-progress-bar value={(index / cards.length) * 100} label="Fortschritt der Lernrunde" className="session-progress"></wa-progress-bar>
+        <span className="session-count" aria-live="polite">
+          {index + 1} / {cards.length}
+        </span>
       </div>
 
-      <article className="flashcard" key={`${index}-${card.id}`} aria-live="polite">
-        <div className="flashcard-side">
-          <span className="flashcard-language">{front.language}</span>
-          <p className="flashcard-text">{front.text}</p>
-        </div>
-        {revealed ? (
-          <div className="flashcard-side flashcard-answer">
-            <wa-divider></wa-divider>
-            <span className="flashcard-language">{back.language}</span>
-            <p className="flashcard-text">{back.text}</p>
+      <div
+        ref={stageRef}
+        className="index-card-stage"
+        data-state={state ?? undefined}
+        data-dragging={dragX !== 0 || undefined}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={() => {
+          drag.current = null;
+          setDragX(0);
+        }}
+        style={dragX ? { transform: `translateX(${dragX}px) rotate(${dragX / 40}deg)` } : undefined}
+      >
+        <article key={`${index}-${card.id}`} className="index-card" data-revealed={revealed || undefined} onClick={() => !revealed && setRevealed(true)}>
+          <div className="index-card-face index-card-front" aria-hidden={revealed}>
+            <span className="card-language">{front.language}</span>
+            <p className="card-word">{front.text}</p>
+            <span className="card-hint">Tippen zum Aufdecken</span>
           </div>
-        ) : null}
-      </article>
+          <div className="index-card-face index-card-back" aria-hidden={!revealed} aria-live="polite">
+            <span className="card-language">{front.language}</span>
+            <p className="card-prompt">{front.text}</p>
+            <span className="card-language">{back.language}</span>
+            <p className="card-word">{revealed ? back.text : ''}</p>
+          </div>
+        </article>
+      </div>
 
       <div className="session-actions">
         {revealed ? (
           <div className="answer-buttons">
-            <wa-button variant="danger" appearance="outlined" size="xl" onClick={() => answer(false)}>
+            <wa-button variant="danger" appearance="outlined" size="xl" disabled={!!feedback} onClick={() => answer(false)}>
               <wa-icon slot="start" name="xmark"></wa-icon>
               Falsch
             </wa-button>
-            <wa-button variant="success" size="xl" onClick={() => answer(true)}>
+            <wa-button variant="success" size="xl" disabled={!!feedback} onClick={() => answer(true)}>
               <wa-icon slot="start" name="check"></wa-icon>
               Gewusst
             </wa-button>
@@ -353,12 +463,18 @@ function FlashcardSession({ cards, onFinish }: { cards: Card[]; onFinish: (resul
             ref={(el: { focus: () => void } | null) => {
               revealButton.current = el;
             }}
-            variant="brand" size="xl" className="full-width" onClick={() => setRevealed(true)}>
-            <wa-icon slot="start" name="eye"></wa-icon>
+            variant="brand"
+            size="xl"
+            className="full-width"
+            onClick={() => setRevealed(true)}
+          >
             Antwort aufdecken
           </wa-button>
         )}
-        <p className="keyboard-hint wa-caption-s wa-color-text-quiet">Tastatur: Leertaste aufdecken · ← falsch · → gewusst</p>
+        <p className="session-hint">
+          <span className="hint-touch">{revealed ? 'Oder wischen: links falsch, rechts gewusst' : ' '}</span>
+          <span className="hint-keys">Leertaste aufdecken, ← falsch, → gewusst, Esc beenden</span>
+        </p>
       </div>
     </div>
   );
@@ -368,34 +484,70 @@ function FlashcardSession({ cards, onFinish }: { cards: Card[]; onFinish: (resul
 // Summary
 // ---------------------------------------------------------------------------
 
-function SessionSummary({ total, result, onRestart, onOverview }: { total: number; result: SessionResult; onRestart: () => void; onOverview: () => void }) {
+function SessionSummary({
+  result,
+  onRepeatWrong,
+  onRestart,
+  onDone,
+}: {
+  result: SessionResult;
+  onRepeatWrong: () => void;
+  onRestart: () => void;
+  onDone: () => void;
+}) {
+  const total = result.correct + result.incorrect;
   const rate = total ? Math.round((result.correct / total) * 100) : 0;
+  const hasWrong = result.wrong.length > 0;
+
   return (
-    <div className="page-narrow wa-stack wa-gap-xl summary">
-      <div className="wa-stack wa-gap-s wa-align-items-center wa-text-center">
+    <div className="summary">
+      <div className="summary-head">
         <wa-progress-ring value={rate} label="Trefferquote" className="summary-ring">
-          {total ? `${rate} %` : '–'}
+          {rate} %
         </wa-progress-ring>
-        <h2 className="wa-heading-xl">Lernsession beendet</h2>
-        <p className="wa-body-l wa-color-text-quiet">{total === 1 ? '1 Vokabel' : `${total} Vokabeln`}</p>
-      </div>
-      <div className="summary-grid">
-        <div className="stat-tile">
-          <span className="stat-label">Gewusst</span>
-          <span className="stat-value count-correct">{result.correct}</span>
-        </div>
-        <div className="stat-tile">
-          <span className="stat-label">Falsch</span>
-          <span className="stat-value count-incorrect">{result.incorrect}</span>
+        <div>
+          <h2 className="summary-title">Runde beendet</h2>
+          <p className="summary-text">
+            {result.correct} von {total} gewusst{hasWrong ? `, ${result.incorrect} falsch` : ''}.
+          </p>
         </div>
       </div>
-      <div className="wa-stack wa-gap-s">
-        <wa-button variant="brand" size="l" className="full-width" onClick={onRestart}>
-          <wa-icon slot="start" name="rotate"></wa-icon>
-          Nochmal lernen
+
+      {hasWrong ? (
+        <section className="stack-section" aria-labelledby="wrong-heading">
+          <h3 id="wrong-heading" className="section-title">
+            Falsch beantwortet
+          </h3>
+          <ul className="grouped-list">
+            {result.wrong.map(({ vocabulary: v, direction }, i) => (
+              <li key={`${v.id}-${i}`} className="grouped-row">
+                <span className="row-main">
+                  <span className="row-title">{direction === 'forward' ? v.question : v.answer}</span>
+                  <span className="row-sub">{direction === 'forward' ? v.answer : v.question}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        <p className="notice notice-success">
+          <wa-icon name="circle-check"></wa-icon>
+          Alles gewusst.
+        </p>
+      )}
+
+      <div className="summary-actions">
+        {hasWrong ? (
+          <wa-button variant="brand" size="l" onClick={onRepeatWrong}>
+            <wa-icon slot="start" name="rotate"></wa-icon>
+            {result.wrong.length === 1 ? 'Falsche Karte wiederholen' : `${result.wrong.length} falsche wiederholen`}
+          </wa-button>
+        ) : null}
+        <wa-button variant={hasWrong ? 'neutral' : 'brand'} appearance={hasWrong ? 'outlined' : 'accent'} size="l" onClick={onRestart}>
+          Neue Runde
         </wa-button>
-        <wa-button appearance="outlined" size="l" className="full-width" onClick={onOverview}>
-          Zur Übersicht
+        <wa-button appearance="plain" size="l" onClick={onDone}>
+          Fertig
         </wa-button>
       </div>
     </div>

@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
+import { Logo } from '../components/AppShell';
 import { MIN_PASSWORD_LENGTH, valueOf } from '../components/fields';
 import { toUserMessage } from '../lib/errors';
+import { InlineError } from './VocabularyListPage';
 import { notify } from '../lib/toast';
 import { signOut, updatePassword } from '../services/authService';
 
@@ -28,20 +30,16 @@ export function ResetPasswordPage() {
 
   return (
     <div className="auth-screen">
-      <div className="auth-panel wa-stack wa-gap-xl">
-        <div className="wa-stack wa-gap-xs wa-align-items-center wa-text-center">
-          <span className="brand-mark brand-mark-large" aria-hidden="true">
-            <wa-icon name="key"></wa-icon>
-          </span>
-          <h1 className="wa-heading-xl">Neues Passwort festlegen</h1>
+      <div className="auth-panel">
+        <div className="auth-head">
+          <Logo size="l" />
+          <p className="auth-wordmark">Vokabeltrainer</p>
+          <h1 className="auth-heading">Neues Passwort festlegen</h1>
         </div>
-        <wa-card>
-          <form className="wa-stack wa-gap-l" onSubmit={onSubmit}>
+        <div className="auth-card">
+          <form className="auth-form" onSubmit={onSubmit}>
             {error ? (
-              <wa-callout variant="danger" size="s">
-                <wa-icon slot="icon" name="circle-xmark"></wa-icon>
-                {error}
-              </wa-callout>
+              <InlineError>{error}</InlineError>
             ) : null}
             <wa-input
               label="Neues Passwort"
@@ -72,7 +70,7 @@ export function ResetPasswordPage() {
               Abbrechen
             </wa-button>
           </form>
-        </wa-card>
+        </div>
       </div>
     </div>
   );

@@ -3,15 +3,18 @@
  * the app uses (imported individually so unused ones are not bundled).
  */
 import '@awesome.me/webawesome/dist/styles/webawesome.css';
+// Literata (card words, wordmark): self-hosted, variable weight + optical size.
+import '@fontsource-variable/literata/opsz.css';
 import '@awesome.me/webawesome/dist/translations/de.js';
 import { setIconPath } from '@awesome.me/webawesome/dist/webawesome.js';
 
-import '@awesome.me/webawesome/dist/components/badge/badge.js';
 import '@awesome.me/webawesome/dist/components/button/button.js';
-import '@awesome.me/webawesome/dist/components/callout/callout.js';
-import '@awesome.me/webawesome/dist/components/card/card.js';
+import '@awesome.me/webawesome/dist/components/details/details.js';
 import '@awesome.me/webawesome/dist/components/dialog/dialog.js';
 import '@awesome.me/webawesome/dist/components/divider/divider.js';
+import '@awesome.me/webawesome/dist/components/drawer/drawer.js';
+import '@awesome.me/webawesome/dist/components/dropdown/dropdown.js';
+import '@awesome.me/webawesome/dist/components/dropdown-item/dropdown-item.js';
 import '@awesome.me/webawesome/dist/components/icon/icon.js';
 import '@awesome.me/webawesome/dist/components/input/input.js';
 import '@awesome.me/webawesome/dist/components/option/option.js';
@@ -24,7 +27,6 @@ import '@awesome.me/webawesome/dist/components/relative-time/relative-time.js';
 import '@awesome.me/webawesome/dist/components/select/select.js';
 import '@awesome.me/webawesome/dist/components/skeleton/skeleton.js';
 import '@awesome.me/webawesome/dist/components/spinner/spinner.js';
-import '@awesome.me/webawesome/dist/components/tag/tag.js';
 import '@awesome.me/webawesome/dist/components/toast/toast.js';
 
 // Font Awesome Free icons are served from public/icons instead of the

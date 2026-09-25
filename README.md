@@ -101,6 +101,21 @@ select count(*) from public.vocabulary where user_id <> auth.uid();  -- muss 0 s
   eine Funktion „Konto löschen“ (derzeit nur über das Supabase-Dashboard; durch
   `on delete cascade` werden dabei alle Daten des Kontos entfernt).
 
+## Design („Karteikasten“)
+
+Vorbild ist die Schul-Karteikarte: weiße Karte, rote Kopflinie, hellblaue Linierung,
+Königsblau als Tinte, Rot für Korrekturen.
+
+- `src/theme.css` – alle Farb-, Radius- und Schatten-Tokens als Overrides der Web-Awesome-Tokens
+  (`--wa-*`), getrennt für Hell (`html.wa-light`) und Dunkel (`html.wa-dark`).
+- `src/styles.css` – Layout und Komponenten, nutzt ausschließlich diese Tokens.
+- Schrift: Systemschrift für die Oberfläche, **Literata** (self-hosted über
+  `@fontsource-variable/literata`, SIL OFL 1.1) für das Wort auf der Karte und die Wortmarke.
+- Die Lernkarte ist das einzige ausdrucksstarke Element (Flip beim Aufdecken, Farbrand als
+  Antwort-Feedback, Wischgeste); alles andere bleibt ruhig (Listen mit Haarlinien statt Kartenraster).
+- Mobil: Bottom-Navigation mit zentralem Hinzufügen-Button, Dialoge als Bottom Sheet,
+  Fokus-Modus ohne Navigation während einer Lernrunde. `prefers-reduced-motion` wird beachtet.
+
 ## Architektur
 
 ```text
@@ -160,7 +175,8 @@ Limits: 5 MB, 10 000 Einträge.
 - Die Sprachauswahl bietet Deutsch, Englisch und Französisch (plus bereits verwendete Sprachen);
   alles andere über „Andere Sprache …“. Die Liste steht in `src/lib/languages.ts`.
 
-- Tastatur im Lernmodus: Leertaste = aufdecken, ← / 1 = falsch, → / 2 = gewusst.
+- Lernmodus: Tippen/Leertaste = aufdecken, ← / 1 oder nach links wischen = falsch,
+  → / 2 oder nach rechts wischen = gewusst, Esc = Runde beenden.
 - `vendor/webawesome/` enthält eine lokale Kopie des Web-Awesome-Pakets (inkl. Doku unter
   `dist-cdn/llms.txt`) als Referenz. Der Build nutzt das npm-Paket `@awesome.me/webawesome`
   in derselben Version (3.14.0).

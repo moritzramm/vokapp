@@ -9,6 +9,7 @@ import { notify } from '../lib/toast';
 import { useUser } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
 import { useVocabulary } from '../hooks/useVocabulary';
+import { InlineError } from './VocabularyListPage';
 import { getVocabularies } from '../services/vocabularyService';
 
 export function SettingsPage() {
@@ -70,9 +71,29 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="page-narrow wa-stack wa-gap-2xl">
-      <section className="settings-section wa-stack wa-gap-m">
-        <h2>Darstellung</h2>
+    <div className="settings-layout">
+      <section className="settings-group" aria-labelledby="account-heading">
+        <h2 id="account-heading" className="section-title">
+          Konto
+        </h2>
+        <div className="grouped-list">
+          <div className="grouped-row">
+            <span className="row-main">
+              <span className="row-sub">Angemeldet als</span>
+              <span className="row-title account-email">{user.email}</span>
+            </span>
+          </div>
+          <button type="button" className="grouped-row row-action" onClick={logout}>
+            <wa-icon name="right-from-bracket"></wa-icon>
+            <span>Ausloggen</span>
+          </button>
+        </div>
+      </section>
+
+      <section className="settings-group" aria-labelledby="theme-heading">
+        <h2 id="theme-heading" className="section-title">
+          Darstellung
+        </h2>
         <wa-radio-group
           label="Farbschema"
           orientation="horizontal"
@@ -93,46 +114,42 @@ export function SettingsPage() {
         </wa-radio-group>
       </section>
 
-      <section className="settings-section wa-stack wa-gap-m">
-        <h2>Datenverwaltung</h2>
-        <div className="wa-stack wa-gap-s">
-          <wa-button appearance="outlined" size="l" className="full-width" loading={exporting === 'json'} onClick={() => exportAs('json')}>
-            <wa-icon slot="start" name="file-arrow-down"></wa-icon>
-            Vokabeln als JSON exportieren
-          </wa-button>
-          <wa-button appearance="outlined" size="l" className="full-width" loading={exporting === 'csv'} onClick={() => exportAs('csv')}>
-            <wa-icon slot="start" name="file-csv"></wa-icon>
-            Vokabeln als CSV exportieren
-          </wa-button>
-          <wa-button appearance="outlined" size="l" className="full-width" onClick={() => fileInput.current?.click()}>
-            <wa-icon slot="start" name="file-arrow-up"></wa-icon>
-            JSON importieren
-          </wa-button>
-          <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={onFile} />
+      <section className="settings-group" aria-labelledby="data-heading">
+        <h2 id="data-heading" className="section-title">
+          Daten
+        </h2>
+        <div className="grouped-list">
+          <button type="button" className="grouped-row row-action" disabled={exporting !== null} onClick={() => exportAs('json')}>
+            <wa-icon name="file-arrow-down"></wa-icon>
+            <span className="row-main">
+              <span className="row-title">Als JSON exportieren</span>
+              <span className="row-sub">Zum Sichern oder erneuten Importieren</span>
+            </span>
+            {exporting === 'json' ? <wa-spinner></wa-spinner> : null}
+          </button>
+          <button type="button" className="grouped-row row-action" disabled={exporting !== null} onClick={() => exportAs('csv')}>
+            <wa-icon name="file-csv"></wa-icon>
+            <span className="row-main">
+              <span className="row-title">Als CSV exportieren</span>
+              <span className="row-sub">Für Excel oder andere Tabellen</span>
+            </span>
+            {exporting === 'csv' ? <wa-spinner></wa-spinner> : null}
+          </button>
+          <button type="button" className="grouped-row row-action" onClick={() => fileInput.current?.click()}>
+            <wa-icon name="file-arrow-up"></wa-icon>
+            <span className="row-main">
+              <span className="row-title">JSON importieren</span>
+              <span className="row-sub">Vorhandene Vokabeln werden übersprungen, nichts wird überschrieben</span>
+            </span>
+          </button>
         </div>
-        <p className="wa-caption-m wa-color-text-quiet">
-          Der Export enthält nur Deine Vokabeln und Lernstatistik – keine Zugangs- oder Kontodaten. Beim Import werden bereits vorhandene Vokabeln übersprungen;
-          es wird nichts überschrieben oder gelöscht.
-        </p>
+        <input ref={fileInput} type="file" accept="application/json,.json" hidden onChange={onFile} />
       </section>
 
-      <section className="settings-section wa-stack wa-gap-m">
-        <h2>Account</h2>
-        <div className="wa-stack wa-gap-3xs">
-          <span className="wa-caption-m wa-color-text-quiet">E-Mail</span>
-          <span className="account-email">{user.email}</span>
-        </div>
-        <wa-button appearance="outlined" variant="danger" size="l" className="full-width" onClick={logout}>
-          <wa-icon slot="start" name="right-from-bracket"></wa-icon>
-          Ausloggen
-        </wa-button>
-      </section>
-
-      <wa-callout variant="neutral" appearance="filled">
-        <wa-icon slot="icon" name="shield-halved"></wa-icon>
+      <p className="privacy-note">
         Deine Vokabeln werden in Deinem persönlichen Supabase-Konto gespeichert. Du kannst von jedem Gerät auf Deine Daten zugreifen, wenn Du Dich mit demselben
-        Konto anmeldest.
-      </wa-callout>
+        Konto anmeldest. Exporte enthalten nur Vokabeln und Lernstatistik, keine Zugangsdaten.
+      </p>
 
       <Dialog
         open={importOpen}
@@ -144,7 +161,7 @@ export function SettingsPage() {
         }}
         footer={
           <>
-            <wa-button appearance="outlined" size="l" data-dialog="close">
+            <wa-button appearance="outlined" size="l" onClick={() => setImportOpen(false)}>
               {analysis?.rows.length ? 'Abbrechen' : 'Schließen'}
             </wa-button>
             {analysis?.rows.length ? (
@@ -155,13 +172,8 @@ export function SettingsPage() {
           </>
         }
       >
-        <div className="wa-stack wa-gap-m">
-          {importError ? (
-            <wa-callout variant="danger" size="s">
-              <wa-icon slot="icon" name="circle-xmark"></wa-icon>
-              {importError}
-            </wa-callout>
-          ) : null}
+        <div className="dialog-body">
+          {importError ? <InlineError>{importError}</InlineError> : null}
           {analysis ? <ImportSummary analysis={analysis} /> : null}
         </div>
       </Dialog>
@@ -179,12 +191,12 @@ function ImportSummary({ analysis }: { analysis: ImportAnalysis }) {
         </li>
         {duplicates ? (
           <li>
-            <wa-icon name="layer-group"></wa-icon> {duplicates} bereits vorhanden – werden übersprungen
+            <wa-icon name="layer-group"></wa-icon> {duplicates} schon vorhanden, werden übersprungen
           </li>
         ) : null}
         {problems.length ? (
           <li>
-            <wa-icon name="triangle-exclamation" className="count-incorrect"></wa-icon> {problems.length} ungültige Einträge – werden nicht importiert
+            <wa-icon name="triangle-exclamation" className="count-incorrect"></wa-icon> {problems.length} ungültige Einträge, werden nicht importiert
           </li>
         ) : null}
       </ul>

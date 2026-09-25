@@ -1,7 +1,6 @@
-import { useDeferredValue, useMemo, useState } from 'react';
+import { useDeferredValue, useMemo, useState, type ReactNode } from 'react';
 import { Dialog } from '../components/Dialog';
 import { valueOf } from '../components/fields';
-import { AnswerCounts } from '../components/Stat';
 import { VocabularyForm } from '../components/VocabularyForm';
 import { toUserMessage } from '../lib/errors';
 import { languagePairLabel } from '../lib/languages';
@@ -13,7 +12,7 @@ import { href } from '../hooks/useRoute';
 import { useVocabulary } from '../hooks/useVocabulary';
 
 const ALL = '__all__';
-const pairKey = (v: Pick<Vocabulary, 'sourceLanguage' | 'targetLanguage'>) => encodeURIComponent(`${v.sourceLanguage}\u0000${v.targetLanguage}`);
+const pairKey = (v: Pick<Vocabulary, 'sourceLanguage' | 'targetLanguage'>) => `${v.sourceLanguage}\u0000${v.targetLanguage}`;
 
 export function VocabularyListPage() {
   const { vocabularies, loading, update, remove } = useVocabulary();
@@ -23,19 +22,26 @@ export function VocabularyListPage() {
   const wide = useMediaQuery('(min-width: 900px)');
 
   const pairs = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const v of vocabularies) map.set(pairKey(v), languagePairLabel(v.sourceLanguage, v.targetLanguage));
-    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1], 'de'));
+    const map = new Map<string, { label: string; count: number }>();
+    for (const v of vocabularies) {
+      const key = pairKey(v);
+      const entry = map.get(key) ?? { label: languagePairLabel(v.sourceLanguage, v.targetLanguage), count: 0 };
+      entry.count++;
+      map.set(key, entry);
+    }
+    return [...map.entries()].sort((a, b) => a[1].label.localeCompare(b[1].label, 'de'));
   }, [vocabularies]);
+
+  const activePair = pair === ALL || pairs.some(([key]) => key === pair) ? pair : ALL;
 
   const filtered = useMemo(() => {
     const needle = deferredSearch.trim().toLocaleLowerCase('de');
     return vocabularies.filter(
       (v) =>
-        (pair === ALL || pairKey(v) === pair) &&
+        (activePair === ALL || pairKey(v) === activePair) &&
         (!needle || v.question.toLocaleLowerCase('de').includes(needle) || v.answer.toLocaleLowerCase('de').includes(needle)),
     );
-  }, [vocabularies, deferredSearch, pair]);
+  }, [vocabularies, deferredSearch, activePair]);
 
   // Edit / delete dialogs
   const [editing, setEditing] = useState<Vocabulary | null>(null);
@@ -71,6 +77,7 @@ export function VocabularyListPage() {
   const startDelete = (v: Vocabulary) => {
     setDeleting(v);
     setDialogError(null);
+    setEditOpen(false);
     setDeleteOpen(true);
   };
 
@@ -80,7 +87,7 @@ export function VocabularyListPage() {
     setDialogError(null);
     try {
       await remove(deleting.id);
-      notify(`„${deleting.question}“ wurde gelöscht.`);
+      notify(`„${deleting.question}“ gelöscht.`);
       setDeleteOpen(false);
     } catch (e) {
       setDialogError(toUserMessage(e, 'Löschen fehlgeschlagen.'));
@@ -93,7 +100,7 @@ export function VocabularyListPage() {
 
   if (vocabularies.length === 0) {
     return (
-      <EmptyState icon="book" title="Noch keine Vokabeln" text="Lege Deine ersten Vokabeln an – sie stehen danach auf all Deinen Geräten bereit.">
+      <EmptyState title="Noch keine Vokabeln" text="Leg Deine erste Vokabel an. Sie steht danach auf allen Deinen Geräten bereit.">
         <wa-button variant="brand" size="l" href={href('neu')}>
           <wa-icon slot="start" name="plus"></wa-icon>
           Vokabel hinzufügen
@@ -103,43 +110,37 @@ export function VocabularyListPage() {
   }
 
   return (
-    <div className="wa-stack wa-gap-l">
+    <div className="list-page">
       <div className="list-toolbar">
-        <wa-input
-          type="search"
-          placeholder="Suchen"
-          aria-label="Vokabeln durchsuchen"
-          size="l"
-          with-clear
-          value={search}
-          onInput={(e) => setSearch(valueOf(e))}
-        >
+        <wa-input type="search" placeholder="Suchen" aria-label="Vokabeln durchsuchen" size="l" with-clear value={search} onInput={(e) => setSearch(valueOf(e))}>
           <wa-icon slot="start" name="magnifying-glass"></wa-icon>
         </wa-input>
-        <wa-select size="l" aria-label="Nach Sprache filtern" value={pair} onInput={(e) => setPair(valueOf(e) || ALL)}>
-          <wa-option value={ALL}>Alle Sprachen</wa-option>
-          {pairs.map(([key, label]) => (
-            <wa-option key={key} value={key}>
-              {label}
-            </wa-option>
-          ))}
-        </wa-select>
+        {pairs.length > 1 ? (
+          <div className="chip-row" role="group" aria-label="Nach Sprachpaar filtern">
+            <Chip active={activePair === ALL} onClick={() => setPair(ALL)}>
+              Alle ({vocabularies.length})
+            </Chip>
+            {pairs.map(([key, { label, count }]) => (
+              <Chip key={key} active={activePair === key} onClick={() => setPair(key)}>
+                {label} ({count})
+              </Chip>
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      <p className="wa-caption-m wa-color-text-quiet" aria-live="polite">
+      <p className="list-count" aria-live="polite">
         {filtered.length === vocabularies.length ? `${vocabularies.length} Vokabeln` : `${filtered.length} von ${vocabularies.length} Vokabeln`}
       </p>
 
       {filtered.length === 0 ? (
-        <EmptyState icon="magnifying-glass" title="Nichts gefunden" text="Keine Vokabel passt zu Suche und Filter." />
+        <EmptyState title="Nichts gefunden" text="Keine Vokabel passt zu Suche und Filter." />
       ) : wide ? (
         <VocabularyTable items={filtered} onEdit={startEdit} onDelete={startDelete} />
       ) : (
-        <ul className="vocab-list wa-list-plain">
+        <ul className="grouped-list vocab-rows">
           {filtered.map((v) => (
-            <li key={v.id}>
-              <VocabularyCard v={v} onEdit={startEdit} onDelete={startDelete} />
-            </li>
+            <VocabularyRow key={v.id} v={v} showPair={pairs.length > 1 && activePair === ALL} onEdit={startEdit} onDelete={startDelete} />
           ))}
         </ul>
       )}
@@ -149,11 +150,17 @@ export function VocabularyListPage() {
         label="Vokabel bearbeiten"
         onClose={() => {
           setEditOpen(false);
-          setEditing(null);
+          setEditing((current) => (deleteOpen ? current : null));
         }}
         footer={
           <>
-            <wa-button appearance="outlined" size="l" data-dialog="close">
+            {editing ? (
+              <wa-button appearance="plain" variant="danger" size="l" className="footer-start" onClick={() => startDelete(editing)}>
+                <wa-icon slot="start" name="trash"></wa-icon>
+                Löschen
+              </wa-button>
+            ) : null}
+            <wa-button appearance="outlined" size="l" onClick={() => setEditOpen(false)}>
               Abbrechen
             </wa-button>
             <wa-button
@@ -170,12 +177,10 @@ export function VocabularyListPage() {
       >
         {draft && editing ? (
           <VocabularyForm key={editing.id} id="edit-vocabulary-form" value={draft} onChange={(update) => setDraft((d) => (d ? update(d) : d))} onSubmit={saveEdit}>
-            {dialogError ? (
-              <wa-callout variant="danger" size="s">
-                <wa-icon slot="icon" name="circle-xmark"></wa-icon>
-                {dialogError}
-              </wa-callout>
-            ) : null}
+            {dialogError ? <InlineError>{dialogError}</InlineError> : null}
+            <p className="field-note">
+              Bisher {editing.correctCount}-mal gewusst, {editing.incorrectCount}-mal falsch. Die Statistik bleibt beim Bearbeiten erhalten.
+            </p>
           </VocabularyForm>
         ) : null}
       </Dialog>
@@ -189,32 +194,34 @@ export function VocabularyListPage() {
         }}
         footer={
           <>
-            <wa-button appearance="outlined" size="l" data-dialog="close">
+            <wa-button appearance="outlined" size="l" onClick={() => setDeleteOpen(false)}>
               Abbrechen
             </wa-button>
             <wa-button variant="danger" size="l" loading={busy} onClick={confirmDelete}>
-              <wa-icon slot="start" name="trash"></wa-icon>
-              Löschen
+              Endgültig löschen
             </wa-button>
           </>
         }
       >
         {deleting ? (
-          <div className="wa-stack wa-gap-m">
+          <div className="dialog-body">
             <p>
-              „<strong>{deleting.question}</strong>“ → „{deleting.answer}“ und die zugehörige Lernstatistik werden auf allen Geräten gelöscht. Das lässt sich nicht
+              <strong>{deleting.question}</strong> ({deleting.answer}) und die zugehörige Lernstatistik werden auf allen Geräten gelöscht. Das lässt sich nicht
               rückgängig machen.
             </p>
-            {dialogError ? (
-              <wa-callout variant="danger" size="s">
-                <wa-icon slot="icon" name="circle-xmark"></wa-icon>
-                {dialogError}
-              </wa-callout>
-            ) : null}
+            {dialogError ? <InlineError>{dialogError}</InlineError> : null}
           </div>
         ) : null}
       </Dialog>
     </div>
+  );
+}
+
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" className="chip" aria-pressed={active} onClick={onClick}>
+      {children}
+    </button>
   );
 }
 
@@ -224,31 +231,70 @@ interface ItemProps {
   onDelete: (v: Vocabulary) => void;
 }
 
-function VocabularyCard({ v, onEdit, onDelete }: ItemProps) {
+function RowMenu({ v, onEdit, onDelete }: ItemProps) {
   return (
-    <wa-card className="vocab-card">
-      <div className="wa-stack wa-gap-s">
-        <div className="wa-stack wa-gap-3xs">
-          <span className="vocab-question">{v.question}</span>
-          <span className="vocab-answer">{v.answer}</span>
-        </div>
-        <div className="wa-cluster wa-gap-s wa-align-items-center">
-          <span className="wa-caption-m wa-color-text-quiet">{languagePairLabel(v.sourceLanguage, v.targetLanguage)}</span>
-          {isDifficult(v) ? <DifficultTag /> : null}
-        </div>
-        <AnswerCounts correct={v.correctCount} incorrect={v.incorrectCount} />
-      </div>
-      <div slot="footer" className="card-actions">
-        <wa-button appearance="outlined" size="m" onClick={() => onEdit(v)}>
-          <wa-icon slot="start" name="pen"></wa-icon>
-          Bearbeiten
-        </wa-button>
-        <wa-button appearance="outlined" variant="danger" size="m" onClick={() => onDelete(v)}>
-          <wa-icon slot="start" name="trash"></wa-icon>
-          Löschen
-        </wa-button>
-      </div>
-    </wa-card>
+    <wa-dropdown
+      placement="bottom-end"
+      onClick={(e: MouseEvent) => e.stopPropagation()}
+      onwa-select={(e: Event) => {
+        const item = (e as CustomEvent<{ item: { value: string } }>).detail.item;
+        if (item.value === 'edit') onEdit(v);
+        if (item.value === 'delete') onDelete(v);
+      }}
+    >
+      <wa-button slot="trigger" appearance="plain" size="m" className="row-menu" aria-label={`Aktionen für ${v.question}`}>
+        <wa-icon name="ellipsis"></wa-icon>
+      </wa-button>
+      <wa-dropdown-item value="edit">
+        <wa-icon slot="icon" name="pen"></wa-icon>
+        Bearbeiten
+      </wa-dropdown-item>
+      <wa-dropdown-item value="delete" variant="danger">
+        <wa-icon slot="icon" name="trash"></wa-icon>
+        Löschen
+      </wa-dropdown-item>
+    </wa-dropdown>
+  );
+}
+
+function Difficult() {
+  return (
+    <span className="difficult">
+      <span className="difficult-dot" aria-hidden="true"></span>
+      schwierig
+    </span>
+  );
+}
+
+function Counts({ v }: { v: Vocabulary }) {
+  return (
+    <span className="counts" aria-label={`${v.correctCount}-mal gewusst, ${v.incorrectCount}-mal falsch`}>
+      <span className="count-correct">{v.correctCount}</span>
+      <span className="count-sep">/</span>
+      <span className="count-incorrect">{v.incorrectCount}</span>
+    </span>
+  );
+}
+
+function VocabularyRow({ v, showPair, onEdit, onDelete }: ItemProps & { showPair: boolean }) {
+  const difficult = isDifficult(v);
+  return (
+    <li className="grouped-row vocab-row">
+      <button type="button" className="row-button" onClick={() => onEdit(v)}>
+        <span className="row-main">
+          <span className="row-title">{v.question}</span>
+          <span className="row-sub">{v.answer}</span>
+          {showPair || difficult ? (
+            <span className="row-meta">
+              {showPair ? languagePairLabel(v.sourceLanguage, v.targetLanguage) : null}
+              {difficult ? <Difficult /> : null}
+            </span>
+          ) : null}
+        </span>
+        <Counts v={v} />
+      </button>
+      <RowMenu v={v} onEdit={onEdit} onDelete={onDelete} />
+    </li>
   );
 }
 
@@ -261,7 +307,9 @@ function VocabularyTable({ items, onEdit, onDelete }: { items: Vocabulary[]; onE
             <th scope="col">Vokabel</th>
             <th scope="col">Übersetzung</th>
             <th scope="col">Sprachen</th>
-            <th scope="col">Statistik</th>
+            <th scope="col" className="num">
+              Gewusst / falsch
+            </th>
             <th scope="col">
               <span className="wa-visually-hidden">Aktionen</span>
             </th>
@@ -269,20 +317,20 @@ function VocabularyTable({ items, onEdit, onDelete }: { items: Vocabulary[]; onE
         </thead>
         <tbody>
           {items.map((v) => (
-            <tr key={v.id}>
-              <td className="vocab-question">
-                {v.question} {isDifficult(v) ? <DifficultTag /> : null}
+            <tr key={v.id} onClick={() => onEdit(v)}>
+              <td className="cell-title">
+                {v.question} {isDifficult(v) ? <Difficult /> : null}
               </td>
               <td>{v.answer}</td>
-              <td className="wa-color-text-quiet">{languagePairLabel(v.sourceLanguage, v.targetLanguage)}</td>
-              <td>
-                <AnswerCounts correct={v.correctCount} incorrect={v.incorrectCount} />
+              <td className="cell-quiet">{languagePairLabel(v.sourceLanguage, v.targetLanguage)}</td>
+              <td className="num">
+                <Counts v={v} />
               </td>
-              <td className="row-actions">
-                <wa-button appearance="plain" size="m" onClick={() => onEdit(v)} aria-label={`${v.question} bearbeiten`} title="Bearbeiten">
+              <td className="row-actions" onClick={(e) => e.stopPropagation()}>
+                <wa-button appearance="plain" size="s" onClick={() => onEdit(v)} aria-label={`${v.question} bearbeiten`} title="Bearbeiten">
                   <wa-icon name="pen"></wa-icon>
                 </wa-button>
-                <wa-button appearance="plain" variant="danger" size="m" onClick={() => onDelete(v)} aria-label={`${v.question} löschen`} title="Löschen">
+                <wa-button appearance="plain" variant="danger" size="s" onClick={() => onDelete(v)} aria-label={`${v.question} löschen`} title="Löschen">
                   <wa-icon name="trash"></wa-icon>
                 </wa-button>
               </td>
@@ -294,32 +342,32 @@ function VocabularyTable({ items, onEdit, onDelete }: { items: Vocabulary[]; onE
   );
 }
 
-function DifficultTag() {
-  return (
-    <wa-tag size="s" variant="warning" appearance="filled" className="difficult-tag">
-      <wa-icon name="fire"></wa-icon>&nbsp;schwierig
-    </wa-tag>
-  );
-}
-
 function ListSkeleton() {
   return (
-    <div className="wa-stack wa-gap-m" aria-busy="true" aria-label="Vokabeln werden geladen">
-      {[0, 1, 2, 3].map((i) => (
-        <wa-skeleton key={i} effect="sheen" className="skeleton-card"></wa-skeleton>
+    <div className="grouped-list" aria-busy="true" aria-label="Vokabeln werden geladen">
+      {[0, 1, 2, 3, 4].map((i) => (
+        <div key={i} className="grouped-row">
+          <wa-skeleton effect="sheen" className="skeleton-row"></wa-skeleton>
+        </div>
       ))}
     </div>
   );
 }
 
-export function EmptyState({ icon, title, text, children }: { icon: string; title: string; text: string; children?: React.ReactNode }) {
+export function InlineError({ children }: { children: ReactNode }) {
   return (
-    <div className="empty-state wa-stack wa-gap-m wa-align-items-center wa-text-center">
-      <span className="empty-icon" aria-hidden="true">
-        <wa-icon name={icon}></wa-icon>
-      </span>
-      <h2 className="wa-heading-m">{title}</h2>
-      <p className="wa-body-m wa-color-text-quiet">{text}</p>
+    <p className="notice notice-danger" role="alert">
+      <wa-icon name="circle-xmark"></wa-icon>
+      <span>{children}</span>
+    </p>
+  );
+}
+
+export function EmptyState({ title, text, children }: { title: string; text: string; children?: ReactNode }) {
+  return (
+    <div className="empty-state">
+      <h2 className="empty-title">{title}</h2>
+      <p className="empty-text">{text}</p>
       {children}
     </div>
   );

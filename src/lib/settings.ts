@@ -29,5 +29,5 @@ export function applyTheme(choice: ThemeChoice): void {
   const root = document.documentElement;
   root.classList.toggle('wa-dark', dark);
   root.classList.toggle('wa-light', !dark);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#16181d' : '#ffffff');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#171b24' : '#fbfbf9');
 }
