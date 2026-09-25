@@ -503,29 +503,52 @@ wa-page[view='desktop']::part(navigation) {
 
 .logo {
   flex: none;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2rem;
+  height: 2rem;
+  overflow: visible;
 }
 
 .logo-l {
-  width: 3rem;
-  height: 3rem;
+  width: 4rem;
+  height: 4rem;
 }
 
-.logo-card {
-  fill: var(--app-card);
-  stroke: var(--wa-color-text-normal);
-  stroke-width: 1.6;
+.logo-stop-1 {
+  stop-color: #8aa2ff;
 }
 
-.logo-header {
-  fill: var(--app-card-header);
+.logo-stop-2 {
+  stop-color: #3d5fd6;
 }
 
-.logo-lines {
-  stroke: var(--wa-color-brand-fill-loud);
-  stroke-width: 1.6;
-  stroke-linecap: round;
+.logo-stop-3 {
+  stop-color: #2446b0;
+}
+
+.logo-side {
+  fill: #16215a;
+}
+
+.logo-edge {
+  fill: #0d1640;
+}
+
+.logo-highlight {
+  fill: #fff;
+  opacity: 0.45;
+}
+
+.logo-highlight-soft {
+  opacity: 0.3;
+}
+
+/* Dark mode: lighter extrusion so the depth stays visible on the dark background */
+html.wa-dark .logo-side {
+  fill: #3a4fb8;
+}
+
+html.wa-dark .logo-edge {
+  fill: #2a3a8c;
 }
 
 .wordmark {

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useId } from 'react';
 import { toUserMessage } from '../lib/errors';
 import { notify } from '../lib/toast';
 import { href, useRoute, type Route } from '../hooks/useRoute';
@@ -109,13 +109,33 @@ export function AppShell() {
   );
 }
 
-/** Stylised index card with a red header rule. */
+const V_PATH = 'M4 6h15l13 33L45 6h15L40 57H24z';
+// Fine steps so the extruded side looks smooth even at large sizes.
+const EXTRUSION_STEPS = [5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.5];
+
+/**
+ * Monogram "V" with depth: gradient front face, extrusion towards bottom right
+ * (stacked, shifted copies) and a light edge on the top-left bevel.
+ * Colours come from CSS so the logo follows light/dark mode.
+ */
 export function Logo({ size = 'm' }: { size?: 'm' | 'l' }) {
+  const id = useId();
   return (
-    <svg className={`logo logo-${size}`} viewBox="0 0 32 32" aria-hidden="true">
-      <rect x="3" y="6" width="26" height="20" rx="2.5" className="logo-card" />
-      <rect x="3" y="6" width="26" height="4" rx="1.5" className="logo-header" />
-      <path d="M8 16h16M8 21h11" className="logo-lines" />
+    <svg className={`logo logo-${size}`} viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <linearGradient id={`${id}-face`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" className="logo-stop-1" />
+          <stop offset="0.45" className="logo-stop-2" />
+          <stop offset="1" className="logo-stop-3" />
+        </linearGradient>
+      </defs>
+      <path className="logo-edge" transform="translate(5.5 6.6)" d={V_PATH} />
+      {EXTRUSION_STEPS.map((step) => (
+        <path key={step} className="logo-side" transform={`translate(${step} ${step * 1.2})`} d={V_PATH} />
+      ))}
+      <path fill={`url(#${id}-face)`} d={V_PATH} />
+      <path className="logo-highlight" d="M4 6h15l-.8 2H6.9L25.4 55H24z" />
+      <path className="logo-highlight logo-highlight-soft" d="M45 6h15l-.9 2H46.2z" />
     </svg>
   );
 }
