@@ -75,6 +75,7 @@ export function AppShell() {
           </div>
 
           <main className="app-main">
+            {route === 'lernen' && !focus ? <FlagBanner /> : null}
             {focus ? null : (
               <header className="page-head">
                 <h1 className="page-title">{TITLES[route]}</h1>
@@ -137,6 +138,28 @@ export function Logo({ size = 'm' }: { size?: 'm' | 'l' }) {
       <path className="logo-highlight" d="M4 6h15l-.8 2H6.9L25.4 55H24z" />
       <path className="logo-highlight logo-highlight-soft" d="M45 6h15l-.9 2H46.2z" />
     </svg>
+  );
+}
+
+const IMAGES = `${import.meta.env.BASE_URL}images`;
+
+/**
+ * Decorative close-up of the French flag at the top of the Learn start screen.
+ * Photo: engin akyurt on Unsplash (Unsplash License), self-hosted.
+ */
+function FlagBanner() {
+  return (
+    <div className="hero-flag" aria-hidden="true">
+      <img
+        src={`${IMAGES}/flag-france-1600.webp`}
+        srcSet={`${IMAGES}/flag-france-800.webp 800w, ${IMAGES}/flag-france-1600.webp 1600w`}
+        sizes="(min-width: 768px) calc(100vw - 14rem), 100vw"
+        width={1600}
+        height={480}
+        alt=""
+        decoding="async"
+      />
+    </div>
   );
 }
 

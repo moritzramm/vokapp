@@ -618,11 +618,13 @@ html.wa-dark .logo-edge {
 }
 
 .app-main {
+  --app-main-pad-top: var(--wa-space-l);
+
   box-sizing: border-box;
   width: 100%;
   max-width: var(--app-content-width);
   margin-inline: auto;
-  padding: var(--wa-space-l) var(--app-gutter);
+  padding: var(--app-main-pad-top) var(--app-gutter);
 }
 
 wa-page[view='mobile'] .app-main {
@@ -639,8 +641,37 @@ wa-page[view='mobile'][data-focus] .app-main {
   }
 
   .app-main {
-    padding-top: var(--wa-space-2xl);
+    --app-main-pad-top: var(--wa-space-2xl);
   }
+}
+
+/* Decorative flag photo in the upper fifth of the Learn start screen.
+   Bleeds to the edges of the content area and fades into the page. */
+.hero-flag {
+  height: 20dvh;
+  min-height: 7rem;
+  max-height: 15rem;
+  margin: calc(-1 * var(--app-main-pad-top)) calc(-1 * var(--app-gutter)) calc(-1 * var(--wa-space-xl));
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 45%, transparent 100%);
+  pointer-events: none;
+}
+
+.hero-flag img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 40%;
+}
+
+html.wa-dark .hero-flag img {
+  filter: brightness(0.82) saturate(0.95);
+}
+
+.hero-flag + .page-head {
+  position: relative;
 }
 
 .page-head {

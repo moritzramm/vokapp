@@ -180,6 +180,8 @@ Limits: 5 MB, 10 000 Einträge.
 - `vendor/webawesome/` enthält eine lokale Kopie des Web-Awesome-Pakets (inkl. Doku unter
   `dist-cdn/llms.txt`) als Referenz. Der Build nutzt das npm-Paket `@awesome.me/webawesome`
   in derselben Version (3.14.0).
+- Foto der französischen Flagge (Lernen-Startseite): [engin akyurt auf Unsplash](https://unsplash.com/photos/a-close-up-of-the-colors-of-the-flag-of-france-kWdjS-mS_nc),
+  [Unsplash License](https://unsplash.com/license); selbst gehostet unter `public/images/`.
 - Icons: [Font Awesome Free](https://fontawesome.com) 7.3.1, Lizenz CC BY 4.0 (`public/icons/LICENSE.txt`).
   Es liegen nur die verwendeten Icons in `public/icons/solid/`. Für ein neues `<wa-icon name="…">`
   die passende SVG aus `@fortawesome/fontawesome-free` (`svgs/solid/`) dorthin kopieren.
