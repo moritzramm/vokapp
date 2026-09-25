@@ -1,0 +1,11 @@
+node_modules
+dist
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+*.tsbuildinfo
+
+# Local reference copy of the Web Awesome package (the build uses the npm package)
+vendor/
